@@ -44,7 +44,7 @@ stdenv.mkDerivation  {
     sourceProvenance=with sourceTypes; [
       binaryNativeCode
     ];
-    license=licenses.as120;
+    license=licenses.asl20;
     description = "The MoonBit Programming Languange toolchain";
   };  
 }
