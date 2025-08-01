@@ -20,7 +20,9 @@ stdenv.mkDerivation  {
     runHook preBuild
     export HOME=$(pwd)
     export PATH=$(pwd)/bin:$PATH
-    chmod +x ./bin/moon ./bin/moonc ./bin/internal/tcc
+    patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" ./bin/moon
+    patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" ./bin/moonc
+    patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" ./bin/internal/tcc    chmod +x ./bin/moon ./bin/moonc ./bin/internal/tcc
     cp -r ${coreSrc} ./core_writable
     chmod -R u+w ./core_writable
     ./bin/moon bundle --all --source-dir ./core_writable
