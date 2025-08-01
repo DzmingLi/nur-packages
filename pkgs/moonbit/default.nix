@@ -24,7 +24,7 @@ stdenv.mkDerivation  {
     patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" ./bin/moon
     patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" ./bin/moonc
     patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" ./bin/internal/tcc
-    chmod +x ./bin/moon ./bin/moonc ./bin/internal/tcc
+    chmod +x ./bin/*
     cp -r ${coreSrc} ./core_writable
     chmod -R u+w ./core_writable
     ./bin/moon bundle --all --source-dir ./core_writable
