@@ -1,4 +1,4 @@
-{ stdenv,lib,fetchzip,autoPatchelfHook, patchelf}:
+{ stdenv,lib,fetchzip,autoPatchelfHook, patchelf,makeWrapper}:
 let coreSrc = fetchzip{
   url="https://cli.moonbitlang.com/cores/core-latest.tar.gz";
   sha256="sha256-dte9OrgvSf48uPyxrAIswx5qfJ3A4nzWjVbJ/1QUn7Y=";
@@ -15,6 +15,7 @@ stdenv.mkDerivation  {
     autoPatchelfHook # 自动修复最终安装的文件
     patchelf         # 手动修复时需要用到的命令
     stdenv.cc.cc.lib
+    makeWrapper
   ];
   buildPhase = ''
     runHook preBuild
