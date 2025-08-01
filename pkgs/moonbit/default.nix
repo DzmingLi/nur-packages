@@ -13,7 +13,6 @@ stdenv.mkDerivation  {
   };
   nativeBuildInputs = [
     autoPatchelfHook # 自动修复最终安装的文件
-    patchelf         # 手动修复时需要用到的命令
     stdenv.cc.cc.lib
     makeWrapper
   ];
@@ -21,9 +20,6 @@ stdenv.mkDerivation  {
     runHook preBuild
     export HOME=$(pwd)
     export PATH=$(pwd)/bin:$PATH
-    patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" ./bin/moon
-    patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" ./bin/moonc
-    patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" ./bin/internal/tcc
     chmod +x ./bin/moon ./bin/moonc ./bin/internal/tcc
     cp -r ${coreSrc} ./core_writable
     chmod -R u+w ./core_writable
@@ -33,10 +29,10 @@ stdenv.mkDerivation  {
   '';
   installPhase = ''
     runHook preInstall
-    mkdir -p $out/bin $out/lib $out/include
-    cp -r ./bin/* $out/bin/
-    cp -r ./lib/* $out/lib/
-    cp -r ./include/* $out/include/
+    mkdir -p $out
+    cp -r ./* $out/
+    mkdir -p $out/lib
+    mv ./core_writable $out/lib/core
     runHook postInstall
   '';
   postFixup=''
