@@ -38,6 +38,9 @@ stdenv.mkDerivation  {
     cp -r ./include/* $out/include/
     runHook postInstall
   '';
+  postFixup=''
+    wrapProgram $out/bin/moon --set MOON_HOME $out
+  '';
   meta=with lib;{
     mainProgram="moon";
     homepage = "https://www.moonbitlang.com";
