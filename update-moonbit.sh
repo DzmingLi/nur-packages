@@ -5,8 +5,8 @@ PKG_FILE="pkgs/moonbit/default.nix"
 BINARY_URL="https://cli.moonbitlang.com/binaries/latest/moonbit-linux-x86_64.tar.gz"
 CORE_URL="https://cli.moonbitlang.com/cores/core-latest.tar.gz"
 
-OLD_BINARY_HASH=$(grep -A 1 'url = "'$BINARY_URL'"' "$PKG_FILE" | grep 'sha256' | sed -e 's/.*hash = "\(.*\)";/\1/')
-OLD_CORE_HASH=$(grep -A 1 'url = "'$CORE_URL'"' "$PKG_FILE" | grep 'sha256' | sed -e 's/.*hash = "\(.*\)";/\1/')
+OLD_BINARY_HASH=$(grep -A 1 'url = "'$BINARY_URL'"' "$PKG_FILE" | grep 'hash' | sed -e 's/.*hash = "\(.*\)";/\1/')
+OLD_CORE_HASH=$(grep -A 1 'url = "'$CORE_URL'"' "$PKG_FILE" | grep 'hash' | sed -e 's/.*hash = "\(.*\)";/\1/')
 
 echo "Current binary hash: $OLD_BINARY_HASH"
 echo "Current core hash:   $OLD_CORE_HASH"
