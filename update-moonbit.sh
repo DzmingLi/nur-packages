@@ -10,8 +10,8 @@ OLD_CORE_HASH=$(grep -A 1 'url = "'$CORE_URL'"' "$PKG_FILE" | grep 'sha256' | se
 echo "Current binary hash: $OLD_BINARY_HASH"
 echo "Current core hash:   $OLD_CORE_HASH"
 
-NEW_BINARY_HASH=$(nix-hash --to-sri --type sha256 $(nix-prefetch-url "$BINARY_URL"))
-NEW_CORE_HASH=$(nix-hash --to-sri --type sha256 $(nix-prefetch-url "$CORE_URL"))
+NEW_BINARY_HASH=$(nix-hash --to-sri --type sha256 $(nix-prefetch-url --unpack "$BINARY_URL"))
+NEW_CORE_HASH=$(nix-hash --to-sri --type sha256 $(nix-prefetch-url --unpack "$CORE_URL"))
 
 echo "Latest binary hash: $NEW_BINARY_HASH"
 echo "Latest core hash:   $NEW_CORE_HASH"
