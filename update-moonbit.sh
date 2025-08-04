@@ -11,8 +11,8 @@ OLD_CORE_HASH=$(grep -A 1 'url = "'$CORE_URL'"' "$PKG_FILE" | grep 'hash' | sed 
 echo "Current binary hash: $OLD_BINARY_HASH"
 echo "Current core hash:   $OLD_CORE_HASH"
 
-BINARY_PATH=$(nix-prefetch-url --print-path "$BINARY_URL")
-CORE_PATH=$(nix-prefetch-url --print-path "$CORE_URL")
+BINARY_PATH=$(nix-prefetch-url --print-path "$BINARY_URL" | tail -n 1)
+CORE_PATH=$(nix-prefetch-url --print-path "$CORE_URL" | tail -n 1)
 
 NEW_BINARY_HASH=$(nix-hash --type sha256 --to-sri "$BINARY_PATH")
 NEW_CORE_HASH=$(nix-hash --type sha256 --to-sri "$CORE_PATH")
