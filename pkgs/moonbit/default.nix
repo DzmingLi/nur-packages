@@ -1,14 +1,14 @@
 { stdenv,lib,fetchzip,autoPatchelfHook, patchelf,makeWrapper}:
 let coreSrc = fetchzip{
   url = "https://cli.moonbitlang.com/cores/core-latest.tar.gz";
-  sha256 = "10mvav5rssqwiqh3p4k12nkrc7lj7zqvvqvg24s6dv5rbs9lvy4p";
+  sha256 = "sha256-l/hNk1657GY0EW/jvfE/kh6WpxVhkjsgjhxrnctWu4I=";
 };
 in
 stdenv.mkDerivation  {
   name = "moonbit";
   src = fetchzip{
     url = "https://cli.moonbitlang.com/binaries/latest/moonbit-linux-x86_64.tar.gz";
-    sha256 = "07x8d5i800xz446drp6k2zqcmjgm1zgslar60b9cy1rl2kwzzbba";
+    sha256 = "sha256-aq3/+RQ0B8/SAiYrqt8P9cnK8BfT3NwMIb8DgGJpqB8=";
     stripRoot=false;
   };
   nativeBuildInputs = [
