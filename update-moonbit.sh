@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+set -x
 PKG_FILE="pkgs/moonbit/default.nix"
 BINARY_URL="https://cli.moonbitlang.com/binaries/latest/moonbit-linux-x86_64.tar.gz"
 CORE_URL="https://cli.moonbitlang.com/cores/core-latest.tar.gz"

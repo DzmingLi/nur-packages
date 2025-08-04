@@ -27,7 +27,6 @@ jobs:
       # Step 3: Run the update script we created earlier.
       - name: Run the update script
         run: |
-          # Make the script executable before running it.
           chmod +x ./update-moonbit.sh
           ./update-moonbit.sh
 
