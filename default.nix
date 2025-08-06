@@ -15,4 +15,6 @@
   overlays = import ./overlays; # nixpkgs overlays
 
   moonbit = pkgs.callPackage ./pkgs/moonbit { };
+  huiwen-mincho = pkgs.callPackage ./pkgs/huiwen-mincho { };
+  genryumin = pkgs.callPackage ./pkgs/genryumin { };
 }
