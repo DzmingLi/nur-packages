@@ -1,7 +1,7 @@
 { pkgs,fetchzip, stdenv, ... }:
 
 stdenv.mkDerivation {
-  name = "genryumin-tc";
+  pname = "genryumin-tc";
   version = "2.100";
   
   src = fetchzip{
