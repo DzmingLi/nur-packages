@@ -180,7 +180,6 @@ export QT_QPA_PLATFORM=wayland
       export QT_IM_MODULE=ibus
     fi
     
-mkdir -p /tmp/.x11
     exec /opt/wemeet/bin/wemeetapp
   '';
   fhs = buildFHSEnvBubblewrap {
@@ -194,7 +193,7 @@ mkdir -p /tmp/.x11
     runScript = startScript;
     extraBwrapArgs = [
 
-"--bind /tmp/.x11 /usr/share/X11"
+"--bind $BWRAP_X11_TMP /usr/share/X11"
       "--ro-bind ${xkeyboard_config}/share/X11/xkb /usr/share/X11/xkb"
           "--bind \$HOME/.local/share/wemeetapp{,}"
       "--ro-bind-try \${HOME}/.fontconfig{,}"
@@ -242,7 +241,9 @@ stdenv.mkDerivation rec {
             ${wemeet-src}/opt/wemeet/icons/hicolor/''${res}x''${res}/mimetypes/wemeetapp.png \
             $out/share/icons/hicolor/''${res}x''${res}/apps/${pkg-name}.png
     done
+    mkdir -p "$out/tmp/.x11"
     makeWrapper ${fhs}/bin/${pkg-name} $out/bin/${pname} \
+      --set BWRAP_X11_TMP "$out/tmp/.x11"
       --run "mkdir -p \$HOME/.local/share/wemeetapp"
     runHook postInstall
   '';
