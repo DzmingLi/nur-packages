@@ -159,7 +159,7 @@ let
   };
   startScript = writeShellScript "wemeet-start" ''
 
-    export LD_LIBRARY_PATH=${lib.makeLibraryPath libraries}:/opt/wemeet/lib
+export LD_LIBRARY_PATH=/opt/wemeet/lib:${lib.makeLibraryPath libraries}
     echo $LD_LIBRARY_PATH
     echo $XDG_SESSION_TYPE
     # Wayland Screenshare Hack
