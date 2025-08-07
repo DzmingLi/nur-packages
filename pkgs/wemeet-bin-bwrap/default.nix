@@ -1,6 +1,6 @@
 { stdenv, lib, autoPatchelfHook, fetchurl , buildFHSEnvBubblewrap, writeShellScript, makeWrapper, copyDesktopItems, makeDesktopItem, fetchFromGitHub
 , useWaylandScreenshare ? false
-, dpkg
+, dpkg,pkgs
 , alsa-lib
 , libgcc
 , glibc
