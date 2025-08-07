@@ -146,7 +146,7 @@ let
       #rev = "d2f0f3b3ac0dce2c890d68c38e8f253ea7ab23ca";
       #sha256 = "sha256-/YWZu0DNJs9DigjBCUjbVHqFwK4qva+kRqkzwg3fOKs=";
       rev = "ab226c63380c4233e2f490ba17e6ea8f393999e2";
-      sha256 = "sha256-nBkbyy0VGOaPNVsEA02bSlTI6eQoVr/QVpEEpCuFdUw=";
+      sha256 = "sha256-0DKUv2ZBDCPIjmN1KIW5b6lh3UZOYxKtMBOpCooPnEQ=";
     };
     nativeBuildInputs = [
       gcc
