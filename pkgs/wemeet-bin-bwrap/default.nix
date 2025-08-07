@@ -193,7 +193,8 @@ export QT_QPA_PLATFORM=wayland
     runScript = startScript;
     extraBwrapArgs = [
 
-      "--ro-bind ${xkeyboard_config}/share/X11 /usr/share/X11"
+"--bind /tmp/.x11 /usr/share/X11"
+      "--ro-bind ${xkeyboard_config}/share/X11/xkb /usr/share/X11/xkb"
           "--bind \$HOME/.local/share/wemeetapp{,}"
       "--ro-bind-try \${HOME}/.fontconfig{,}"
       "--ro-bind-try \${HOME}/.fonts{,}"
