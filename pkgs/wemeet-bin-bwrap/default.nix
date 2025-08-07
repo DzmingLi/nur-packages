@@ -58,7 +58,7 @@ let
     zlib
     wayland
     pipewire
-    pkgs.pipewire-media-session
+    pkgs.wireplumber
     nss
     curl
     libxkbcommon
