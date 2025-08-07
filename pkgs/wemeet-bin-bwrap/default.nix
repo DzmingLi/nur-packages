@@ -160,7 +160,10 @@ let
   startScript = writeShellScript "wemeet-start" ''
 
 export LD_LIBRARY_PATH=/opt/wemeet/lib:${lib.makeLibraryPath libraries}
-    echo $LD_LIBRARY_PATH
+
+export QT_QPA_PLATFORM=wayland
+  export QT_QPA_PLATFORM_PLUGIN_PATH=${libsForQt5.qt5.qtwayland}/lib/qt5/plugins
+      echo $LD_LIBRARY_PATH
     echo $XDG_SESSION_TYPE
     # Wayland Screenshare Hack
     if [ "$XDG_SESSION_TYPE" != "wayland" ]; then
@@ -176,6 +179,7 @@ export LD_LIBRARY_PATH=/opt/wemeet/lib:${lib.makeLibraryPath libraries}
     elif [[ ''${XMODIFIERS} =~ ibus ]]; then
       export QT_IM_MODULE=ibus
     fi
+    
     exec /opt/wemeet/bin/wemeetapp
   '';
   fhs = buildFHSEnvBubblewrap {
@@ -188,7 +192,9 @@ export LD_LIBRARY_PATH=/opt/wemeet/lib:${lib.makeLibraryPath libraries}
       libraries;
     runScript = startScript;
     extraBwrapArgs = [
-      "--bind \$HOME/.local/share/wemeetapp{,}"
+
+    "--ro-bind /run/current-system/sw/share/X11/xkb /usr/share/X11/xkb"
+          "--bind \$HOME/.local/share/wemeetapp{,}"
       "--ro-bind-try \${HOME}/.fontconfig{,}"
       "--ro-bind-try \${HOME}/.fonts{,}"
       "--ro-bind-try \${HOME}/.config/fontconfig{,}"
