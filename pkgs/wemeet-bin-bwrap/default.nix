@@ -1,6 +1,6 @@
 { stdenv, lib, autoPatchelfHook, fetchurl , buildFHSEnvBubblewrap, writeShellScript, makeWrapper, copyDesktopItems, makeDesktopItem, fetchFromGitHub
 , useWaylandScreenshare ? false
-, dpkg,pkgs
+, dpkg,xkeyboard_config
 , alsa-lib
 , libgcc
 , glibc
@@ -193,7 +193,7 @@ export QT_QPA_PLATFORM=wayland
     runScript = startScript;
     extraBwrapArgs = [
 
-      "--ro-bind ${pkgs."xkeyboard-config"}/share/X11 /usr/share/X11"
+      "--ro-bind ${xkeyboard_config}/share/X11 /usr/share/X11"
           "--bind \$HOME/.local/share/wemeetapp{,}"
       "--ro-bind-try \${HOME}/.fontconfig{,}"
       "--ro-bind-try \${HOME}/.fonts{,}"
