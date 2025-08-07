@@ -195,7 +195,6 @@ export QT_QPA_PLATFORM=wayland
     runScript = startScript;
     extraBwrapArgs = [
 
-"--ro-bind /run/user/$UID/xdg-desktop-portal /run/user/$UID/xdg-desktop-portal"
   
 "--ro-bind-try /etc/pipewire /etc/pipewire"
   
