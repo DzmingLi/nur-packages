@@ -15,7 +15,7 @@
 , curl
 , libxkbcommon
 # Wayland Screenshare hack
-, gcc
+, gcc,pkgs
 , pkg-config
 , git
 , cmake
@@ -58,6 +58,7 @@ let
     zlib
     wayland
     pipewire
+    pkgs.pipewire-media-session
     nss
     curl
     libxkbcommon
@@ -194,6 +195,10 @@ export QT_QPA_PLATFORM=wayland
     runScript = startScript;
     extraBwrapArgs = [
 
+"--ro-bind /run/user/$UID/xdg-desktop-portal /run/user/$UID/xdg-desktop-portal"
+  
+"--ro-bind-try /etc/pipewire /etc/pipewire"
+  
 "--ro-bind /run/user/$UID/pipewire-0 /run/user/$UID/pipewire-0"
       "--ro-bind ${xkeyboard_config}/share/ /usr/share"
       "--bind \$HOME/.local/share/wemeetapp{,}"
