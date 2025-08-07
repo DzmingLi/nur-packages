@@ -57,6 +57,7 @@ let
     libsForQt5.qt5.qtwayland
     zlib
     wayland
+    pipewire
     nss
     curl
     libxkbcommon
