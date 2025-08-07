@@ -1,9 +1,9 @@
 { stdenv, lib, autoPatchelfHook, fetchurl , buildFHSEnvBubblewrap, writeShellScript, makeWrapper, copyDesktopItems, makeDesktopItem, fetchFromGitHub
 , useWaylandScreenshare ? false
-, dpkg,xkeyboard_config
+, dpkg
 , alsa-lib
-, libgcc
-, glibc
+# , libgcc
+# , glibc
 , libglvnd
 , libpulseaudio
 , xorg
@@ -12,10 +12,34 @@
 , zlib
 , wayland
 , nss
-, curl
+# , curl
 , libxkbcommon
+
+, libyuv
+, nspr
+, freetype
+, expat
+, fontconfig
+, harfbuzz
+, glib
+, systemd
+, dbus
+, rtmpdump
+, openldap
+, desktop-file-utils
+, libgcrypt
+, udev
+, libGL
+, libdrm
+, curl
+, nghttp2
+, libunwind
+, libidn2
+, libpsl
+, libkrb5
+, xkeyboard_config
 # Wayland Screenshare hack
-, gcc,pkgs
+, gcc
 , pkg-config
 , git
 , cmake
@@ -36,8 +60,8 @@ let
       "${wrap}/libwemeetwrap.so";
   libraries = [
     alsa-lib
-    libgcc
-    glibc
+    # libgcc
+    # glibc
     libglvnd
     libpulseaudio
     xorg.libX11
@@ -57,12 +81,36 @@ let
     libsForQt5.qt5.qtwayland
     zlib
     wayland
-    pipewire
-    pkgs.wireplumber
     nss
     curl
     libxkbcommon
     opencv
+
+    libyuv
+    nspr
+    xorg.libXtst
+    freetype
+    expat
+    fontconfig
+    harfbuzz
+    glib
+    systemd
+    dbus
+    rtmpdump
+    openldap
+
+    desktop-file-utils
+    libgcrypt
+    udev
+    libGL
+    libdrm
+    curl
+    nghttp2
+    libunwind
+    libidn2
+    libpsl
+    libkrb5
+    xkeyboard_config
   ];
   wrap = stdenv.mkDerivation {
     name = "wrap-c";
@@ -95,10 +143,10 @@ let
     src = fetchFromGitHub {
       owner = "xuwd1";
       repo = "wemeet-wayland-screenshare";
-      rev = "d2f0f3b3ac0dce2c890d68c38e8f253ea7ab23ca";
-      sha256 = "sha256-/YWZu0DNJs9DigjBCUjbVHqFwK4qva+kRqkzwg3fOKs=";
-      # rev = "a1c8cc5a015a275256eef672f7df70a1e78e4c78";
-      # sha256 = "sha256-09GRim8TgmdOF+sKLotVkvKFNYhLVevNxM+ZEBitpso=";
+      #rev = "d2f0f3b3ac0dce2c890d68c38e8f253ea7ab23ca";
+      #sha256 = "sha256-/YWZu0DNJs9DigjBCUjbVHqFwK4qva+kRqkzwg3fOKs=";
+      rev = "ab226c63380c4233e2f490ba17e6ea8f393999e2";
+      sha256 = "sha256-nBkbyy0VGOaPNVsEA02bSlTI6eQoVr/QVpEEpCuFdUw=";
     };
     nativeBuildInputs = [
       gcc
@@ -132,14 +180,16 @@ let
     '';
   };
   pkg-name = "wemeet-bin";
-  pkg-ver = "3.19.2.400";
+  pkg-ver = "3.19.0.401";
   wemeet-src = stdenv.mkDerivation rec {
     name = "${pkg-name}";
     version = "${pkg-ver}";
 
     src = fetchurl {
-      url = "https://updatecdn.meeting.qq.com/cos/fb7464ffb18b94a06868265bed984007/TencentMeeting_0300000000_${version}_x86_64_default.publish.officialwebsite.deb";
-      sha256 = "sha256-PSGc4urZnoBxtk1cwwz/oeXMwnI02Mv1pN2e9eEf5kE=";
+      url = "https://updatecdn.meeting.qq.com/cos/bb4001c715553579a8b3e496233331d4/TencentMeeting_0300000000_${version}_x86_64_default.publish.deb";
+      hash = "sha256-VN/rNn2zA21l6BSzLpQ5Bl9XB2hrMFIa0o0cy2vdLx8=";
+      #url = "https://updatecdn.meeting.qq.com/cos/fb7464ffb18b94a06868265bed984007/TencentMeeting_0300000000_3.19.2.400_x86_64_default.publish.deb";
+      #hash = "sha256-PSGc4urZnoBxtk1cwwz/oeXMwnI02Mv1pN2e9eEf5kE=";
     };
 
     nativeBuildInputs = [
@@ -157,15 +207,18 @@ let
       mkdir -p $out;
       rm opt/wemeet/lib/libcurl.so
       cp -r . $out
+      # 建议放在 installPhase 最后
+
+      # find $out/opt/wemeet -type f -exec file {} \; | grep ELF | cut -d: -f1 | while read -r elf; do
+      #   echo "Patching RPATH: $elf"
+      #   patchelf --set-rpath '$ORIGIN:/opt/wemeet/lib' "$elf" || echo "skip $elf"
+      # done
     '';
   };
   startScript = writeShellScript "wemeet-start" ''
-
-export LD_LIBRARY_PATH=/opt/wemeet/lib:${lib.makeLibraryPath libraries}
-
-export QT_QPA_PLATFORM=wayland
-  export QT_QPA_PLATFORM_PLUGIN_PATH=${libsForQt5.qt5.qtwayland}/lib/qt5/plugins
-      echo $LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=/lib:/opt/wemeet/lib
+    #export LD_LIBRARY_PATH=/opt/wemeet/lib
+    echo $LD_LIBRARY_PATH
     echo $XDG_SESSION_TYPE
     # Wayland Screenshare Hack
     if [ "$XDG_SESSION_TYPE" != "wayland" ]; then
@@ -181,7 +234,10 @@ export QT_QPA_PLATFORM=wayland
     elif [[ ''${XMODIFIERS} =~ ibus ]]; then
       export QT_IM_MODULE=ibus
     fi
-    
+    export XDG_SESSION_TYPE=x11
+    export EGL_PLATFORM=x11
+    export QT_QPA_PLATFORM=xcb
+    unset WAYLAND_DISPLAY
     exec /opt/wemeet/bin/wemeetapp
   '';
   fhs = buildFHSEnvBubblewrap {
@@ -194,12 +250,6 @@ export QT_QPA_PLATFORM=wayland
       libraries;
     runScript = startScript;
     extraBwrapArgs = [
-
-  
-"--ro-bind-try /etc/pipewire /etc/pipewire"
-  
-"--ro-bind /run/user/$UID/pipewire-0 /run/user/$UID/pipewire-0"
-      "--ro-bind ${xkeyboard_config}/share/ /usr/share"
       "--bind \$HOME/.local/share/wemeetapp{,}"
       "--ro-bind-try \${HOME}/.fontconfig{,}"
       "--ro-bind-try \${HOME}/.fonts{,}"
