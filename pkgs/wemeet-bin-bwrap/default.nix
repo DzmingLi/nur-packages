@@ -193,9 +193,8 @@ export QT_QPA_PLATFORM=wayland
     runScript = startScript;
     extraBwrapArgs = [
 
-"--bind $BWRAP_X11_TMP /usr/share/X11"
-      "--ro-bind ${xkeyboard_config}/share/X11/xkb /usr/share/X11/xkb"
-          "--bind \$HOME/.local/share/wemeetapp{,}"
+      "--ro-bind ${xkeyboard_config}/share/ /usr/share"
+      "--bind \$HOME/.local/share/wemeetapp{,}"
       "--ro-bind-try \${HOME}/.fontconfig{,}"
       "--ro-bind-try \${HOME}/.fonts{,}"
       "--ro-bind-try \${HOME}/.config/fontconfig{,}"
@@ -241,9 +240,7 @@ stdenv.mkDerivation rec {
             ${wemeet-src}/opt/wemeet/icons/hicolor/''${res}x''${res}/mimetypes/wemeetapp.png \
             $out/share/icons/hicolor/''${res}x''${res}/apps/${pkg-name}.png
     done
-    mkdir -p "$out/tmp/.x11"
     makeWrapper ${fhs}/bin/${pkg-name} $out/bin/${pname} \
-      --set BWRAP_X11_TMP "$out/tmp/.x11" \
       --run "mkdir -p \$HOME/.local/share/wemeetapp"
     runHook postInstall
   '';
