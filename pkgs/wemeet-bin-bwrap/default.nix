@@ -136,8 +136,8 @@ let
     version = "${pkg-ver}";
 
     src = fetchurl {
-      url = "https://updatecdn.meeting.qq.com/cos/fb7464ffb18b94a06868265bed984007/TencentMeeting_0300000000_${version}_x86_64_default.publish.officalwebsite.deb";
-      hash = "sha256-VN/rN/n2zA21l6BSzLpQ5Bl9XB2hrMFIa0o0cy2vdLx8=";
+      url = "https://updatecdn.meeting.qq.com/cos/fb7464ffb18b94a06868265bed984007/TencentMeeting_0300000000_${version}_x86_64_default.publish.officialwebsite.deb";
+      sha256 = "sha256-PSGc4urZnoBxtk1cwwz/oeXMwnI02Mv1pN2e9eEf5kE=";
     };
 
     nativeBuildInputs = [
