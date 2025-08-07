@@ -243,7 +243,7 @@ stdenv.mkDerivation rec {
     done
     mkdir -p "$out/tmp/.x11"
     makeWrapper ${fhs}/bin/${pkg-name} $out/bin/${pname} \
-      --set BWRAP_X11_TMP "$out/tmp/.x11"
+      --set BWRAP_X11_TMP "$out/tmp/.x11" \
       --run "mkdir -p \$HOME/.local/share/wemeetapp"
     runHook postInstall
   '';
