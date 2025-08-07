@@ -180,6 +180,7 @@ export QT_QPA_PLATFORM=wayland
       export QT_IM_MODULE=ibus
     fi
     
+mkdir -p /tmp/.x11
     exec /opt/wemeet/bin/wemeetapp
   '';
   fhs = buildFHSEnvBubblewrap {
