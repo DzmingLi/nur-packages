@@ -158,7 +158,8 @@ let
     '';
   };
   startScript = writeShellScript "wemeet-start" ''
-    export LD_LIBRARY_PATH=/lib:/opt/wemeet/lib
+
+    export LD_LIBRARY_PATH=${lib.makeLibraryPath libraries}:/opt/wemeet/lib
     echo $LD_LIBRARY_PATH
     echo $XDG_SESSION_TYPE
     # Wayland Screenshare Hack
@@ -175,10 +176,6 @@ let
     elif [[ ''${XMODIFIERS} =~ ibus ]]; then
       export QT_IM_MODULE=ibus
     fi
-    export XDG_SESSION_TYPE=x11
-    export EGL_PLATFORM=x11
-    export QT_QPA_PLATFORM=xcb
-    unset WAYLAND_DISPLAY
     exec /opt/wemeet/bin/wemeetapp
   '';
   fhs = buildFHSEnvBubblewrap {
