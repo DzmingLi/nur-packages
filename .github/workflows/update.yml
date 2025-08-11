@@ -19,7 +19,7 @@ jobs:
 
       # Step 2: Install Nix in the CI environment.
       - name: Install Nix
-        uses: cachix/install-nix-action@v25
+        uses: cachix/install-nix-action@v31
         with:
           # Ensures Nix can find the nixpkgs channel.
           nix_path: nixpkgs=channel:nixos-unstable
