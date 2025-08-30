@@ -1,7 +1,7 @@
 { pkgs, stdenv, ... }:
 
 stdenv.mkDerivation {
-  pname = "TWRUDMincho";
+  pname = "TRWUDMincho";
   version = "1.001";
   src = ./.;
 

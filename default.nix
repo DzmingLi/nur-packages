@@ -17,5 +17,5 @@
   moonbit = pkgs.callPackage ./pkgs/moonbit { };
   huiwen-mincho = pkgs.callPackage ./pkgs/huiwen-mincho { };
   genryumin = pkgs.callPackage ./pkgs/genryumin { };
-  TWRUDMincho = pkgs.callPackage ./pkgs/TWRUDMincho { };
+  TRWUDMincho = pkgs.callPackage ./pkgs/TRWUDMincho { };
 }
