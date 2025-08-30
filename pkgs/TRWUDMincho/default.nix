@@ -6,8 +6,8 @@ stdenv.mkDerivation {
   src = ./.;
 
   installPhase = ''
-    mkdir -p $out/share/fonts/opentype/
-    cp -r *.otf $out/share/fonts/opentype/
+    mkdir -p $out/share/fonts/truetype/
+    cp -r *.ttf $out/share/fonts/truetype/
 
   '';
 
