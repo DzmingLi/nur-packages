@@ -17,5 +17,5 @@
   moonbit = pkgs.callPackage ./pkgs/moonbit { };
   huiwen-mincho = pkgs.callPackage ./pkgs/huiwen-mincho { };
   genryumin = pkgs.callPackage ./pkgs/genryumin { };
-  wemeet-bin-bwrap-wayland-screenshare = pkgs.libsForQt5.callPackage ./pkgs/wemeet-bin-bwrap { useWaylandScreenshare = true; };
+  TWRUDMincho = pkgs.callPackage ./pkgs/TWRUDMincho { };
 }
