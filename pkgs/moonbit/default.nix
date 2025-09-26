@@ -28,7 +28,6 @@ stdenv.mkDerivation  {
     cp -r ${coreSrc} ./core_writable
     chmod -R u+w ./core_writable
     ./bin/moon bundle --all --source-dir ./core_writable
-    ./bin/moon bundle --target wasm-gc --source-dir ./core_writable --quiet
     runHook postBuild  
   '';
   installPhase = ''
