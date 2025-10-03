@@ -18,4 +18,8 @@
   huiwen-mincho = pkgs.callPackage ./pkgs/huiwen-mincho { };
   genryumin = pkgs.callPackage ./pkgs/genryumin { };
   TRWUDMincho = pkgs.callPackage ./pkgs/TRWUDMincho { };
+  libboundscheck = pkgs.callPackage ./pkgs/libboundscheck { };
+  openhitls = pkgs.callPackage ./pkgs/openhitls {
+    libboundscheck = pkgs.callPackage ./pkgs/libboundscheck { };
+  };
 }
