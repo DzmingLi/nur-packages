@@ -31,7 +31,7 @@ stdenv.mkDerivation rec {
   ];
 
   preConfigure = ''
-    python3 configure.py --enable hitls_bsl hitls_crypto hitls_tls hitls_pki hitls_auth --bits 64
+    python3 configure.py --enable all --bits 64
     ls -la config/macro_config/ || echo "Config dir not found"
   '';
 
