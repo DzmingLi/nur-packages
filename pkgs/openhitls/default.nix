@@ -38,6 +38,12 @@ stdenv.mkDerivation rec {
     "-DCMAKE_BUILD_TYPE=Release"
   ];
 
+  postInstall = ''
+    # Install config header files needed for compiling against openHiTLS
+    mkdir -p $out/include/hitls/config
+    cp -r config/macro_config/*.h $out/include/hitls/config/
+  '';
+
   meta = with lib; {
     description = "Highly efficient and agile open-source SDK for cryptography and transport layer security";
     longDescription = ''
