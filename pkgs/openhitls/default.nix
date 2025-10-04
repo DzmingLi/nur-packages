@@ -43,18 +43,22 @@ stdenv.mkDerivation rec {
     # Install config header files needed for compiling against openHiTLS
     mkdir -p $out/include/hitls/config
 
-    # Try to find config files in source directory
-    if [ -d "$sourceRoot/config/macro_config" ]; then
-      echo "Installing config headers from $sourceRoot/config/macro_config"
-      cp $sourceRoot/config/macro_config/*.h $out/include/hitls/config/ 2>/dev/null || true
-    elif [ -d "config/macro_config" ]; then
-      echo "Installing config headers from config/macro_config"
-      cp config/macro_config/*.h $out/include/hitls/config/ 2>/dev/null || true
+    # Debug: show current directory and look for config files
+    echo "Current directory: $(pwd)"
+    echo "Looking for config files..."
+    find . -name "hitls_build.h" 2>/dev/null || echo "hitls_build.h not found"
+
+    # The config files are in the original source directory
+    cd "$NIX_BUILD_TOP/$sourceRoot" || cd "$NIX_BUILD_TOP/source" || true
+
+    if [ -d "config/macro_config" ] && [ -n "$(ls config/macro_config/*.h 2>/dev/null)" ]; then
+      echo "Installing config headers from $(pwd)/config/macro_config"
+      cp config/macro_config/*.h $out/include/hitls/config/
     else
-      echo "Warning: config/macro_config headers not found"
+      echo "Warning: config/macro_config headers not found in $(pwd)"
     fi
 
-    ls -la $out/include/hitls/config/ || true
+    ls -la $out/include/hitls/config/
   '';
 
   meta = with lib; {
