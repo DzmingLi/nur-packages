@@ -41,7 +41,11 @@ stdenv.mkDerivation rec {
   postInstall = ''
     # Install config header files needed for compiling against openHiTLS
     mkdir -p $out/include/hitls/config
-    cp -r config/macro_config/*.h $out/include/hitls/config/
+    if [ -d config/macro_config ] && [ -n "$(ls -A config/macro_config/*.h 2>/dev/null)" ]; then
+      cp config/macro_config/*.h $out/include/hitls/config/
+    else
+      echo "Warning: config/macro_config headers not found, skipping..."
+    fi
   '';
 
   meta = with lib; {
