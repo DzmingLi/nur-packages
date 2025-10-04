@@ -32,6 +32,7 @@ stdenv.mkDerivation rec {
 
   preConfigure = ''
     python3 configure.py --enable hitls_bsl hitls_crypto hitls_tls hitls_pki hitls_auth --bits 64
+    ls -la config/macro_config/ || echo "Config dir not found"
   '';
 
   cmakeFlags = [
@@ -41,11 +42,19 @@ stdenv.mkDerivation rec {
   postInstall = ''
     # Install config header files needed for compiling against openHiTLS
     mkdir -p $out/include/hitls/config
-    if [ -d config/macro_config ] && [ -n "$(ls -A config/macro_config/*.h 2>/dev/null)" ]; then
-      cp config/macro_config/*.h $out/include/hitls/config/
+
+    # Try to find config files in source directory
+    if [ -d "$sourceRoot/config/macro_config" ]; then
+      echo "Installing config headers from $sourceRoot/config/macro_config"
+      cp $sourceRoot/config/macro_config/*.h $out/include/hitls/config/ 2>/dev/null || true
+    elif [ -d "config/macro_config" ]; then
+      echo "Installing config headers from config/macro_config"
+      cp config/macro_config/*.h $out/include/hitls/config/ 2>/dev/null || true
     else
-      echo "Warning: config/macro_config headers not found, skipping..."
+      echo "Warning: config/macro_config headers not found"
     fi
+
+    ls -la $out/include/hitls/config/ || true
   '';
 
   meta = with lib; {
