@@ -22,4 +22,10 @@
   openhitls = pkgs.callPackage ./pkgs/openhitls {
     libboundscheck = pkgs.callPackage ./pkgs/libboundscheck { };
   };
+  nginx-openhitls = pkgs.callPackage ./pkgs/nginx-openhitls {
+    libboundscheck = pkgs.callPackage ./pkgs/libboundscheck { };
+    openhitls = pkgs.callPackage ./pkgs/openhitls {
+      libboundscheck = pkgs.callPackage ./pkgs/libboundscheck { };
+    };
+  };
 }
