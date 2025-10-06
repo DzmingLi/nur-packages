@@ -114,9 +114,11 @@ in stdenv.mkDerivation rec {
   '';
 
   installPhase = ''
-    # Install without creating /run directory
-    make install DESTDIR=$TMPDIR/install
-    cp -r $TMPDIR/install/$out/* $out/
+    # Patch Makefile to skip /run and /var creation
+    sed -i '/mkdir -p.*\/run/d' objs/Makefile
+    sed -i '/mkdir -p.*\/var\/log/d' objs/Makefile
+
+    make install
 
     # Create necessary directories
     mkdir -p $out/logs
