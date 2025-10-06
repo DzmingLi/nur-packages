@@ -114,11 +114,12 @@ in stdenv.mkDerivation rec {
   '';
 
   installPhase = ''
-    make install
+    # Install without creating /run directory
+    make install DESTDIR=$TMPDIR/install
+    cp -r $TMPDIR/install/$out/* $out/
 
     # Create necessary directories
     mkdir -p $out/logs
-    mkdir -p $out/temp/{client_body,proxy,fastcgi,uwsgi,scgi}
     mkdir -p $out/html
 
     # Create a basic index.html
