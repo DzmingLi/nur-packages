@@ -11,7 +11,6 @@
 , pcre2
 , zlib
 , modules ? []
-, passthru ? {}
 , ...
 }:
 
@@ -158,8 +157,7 @@ EOF
 
   passthru = {
     inherit modules;
-    tests = {};
-  } // passthru;
+  };
 
   meta = with lib; {
     description = "nginx with OpenHitls support for Chinese SM algorithms and TLCP protocol";
