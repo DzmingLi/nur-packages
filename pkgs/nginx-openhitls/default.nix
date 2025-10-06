@@ -10,6 +10,8 @@
 , perl
 , pcre2
 , zlib
+, modules ? []
+, ...
 }:
 
 let
