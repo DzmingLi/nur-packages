@@ -98,7 +98,15 @@ in stdenv.mkDerivation rec {
       --with-cc-opt="-std=c99" \
       --with-ld-opt="-L${libxcrypt}/lib -lcrypt" \
       --with-http_ssl_module \
-      --with-openhitls=${openhitlsSource}
+      --with-openhitls=${openhitlsSource} \
+      --http-log-path=/var/log/nginx/access.log \
+      --error-log-path=/var/log/nginx/error.log \
+      --pid-path=/run/nginx/nginx.pid \
+      --http-client-body-temp-path=/var/lib/nginx/client_body \
+      --http-proxy-temp-path=/var/lib/nginx/proxy \
+      --http-fastcgi-temp-path=/var/lib/nginx/fastcgi \
+      --http-uwsgi-temp-path=/var/lib/nginx/uwsgi \
+      --http-scgi-temp-path=/var/lib/nginx/scgi
   '';
 
   buildPhase = ''
