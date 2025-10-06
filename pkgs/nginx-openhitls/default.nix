@@ -115,8 +115,10 @@ in stdenv.mkDerivation rec {
 
   installPhase = ''
     # Patch Makefile to skip /run and /var creation
-    sed -i '/mkdir -p.*\/run/d' objs/Makefile
-    sed -i '/mkdir -p.*\/var\/log/d' objs/Makefile
+    sed -i '/test -d.*\/run\/nginx/d' objs/Makefile
+    sed -i '/mkdir -p.*\/run\/nginx/d' objs/Makefile
+    sed -i '/test -d.*\/var\/log\/nginx/d' objs/Makefile
+    sed -i '/mkdir -p.*\/var\/log\/nginx/d' objs/Makefile
 
     make install
 
