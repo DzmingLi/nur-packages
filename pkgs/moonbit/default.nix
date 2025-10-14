@@ -8,7 +8,7 @@ stdenv.mkDerivation  {
   name = "moonbit";
   src = fetchzip{
     url = "https://cli.moonbitlang.com/binaries/latest/moonbit-linux-x86_64.tar.gz";
-    sha256 = "sha256-8AwukSHQ9NlFncAJAdM3ZJOYHWMqzw39L6bcYWw+0rM=";
+    sha256 = "sha256-0gYxVKr8wCjmSFkwVv0HI9AQnNPP72aX5ic0VUpVAVE=";
     stripRoot=false;
   };
   nativeBuildInputs = [
