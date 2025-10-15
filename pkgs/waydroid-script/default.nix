@@ -1,18 +1,18 @@
 {
   stdenv,
   lib,
-  buildPythonApplication,
+  python3Packages,
   fetchFromGitHub,
   replaceVars,
-  setuptools,
-  inquirerpy,
-  requests,
-  tqdm,
   lzip,
   util-linux,
   nix-update-script,
 }:
 let
+  inherit (python3Packages) buildPythonApplication setuptools requests tqdm;
+
+  inquirerpy = python3Packages.InquirerPy;
+
   pname = "waydroid-script";
   version = "0-unstable-2025-08-31";
   src = fetchFromGitHub {
