@@ -15,6 +15,7 @@
   overlays = import ./overlays; # nixpkgs overlays
 
   moonbit = pkgs.callPackage ./pkgs/moonbit { };
+  shiroa = pkgs.callPackage ./pkgs/shiroa { };
   huiwen-mincho = pkgs.callPackage ./pkgs/huiwen-mincho { };
   genryumin = pkgs.callPackage ./pkgs/genryumin { };
   TRWUDMincho = pkgs.callPackage ./pkgs/TRWUDMincho { };
@@ -28,4 +29,5 @@
       libboundscheck = pkgs.callPackage ./pkgs/libboundscheck { };
     };
   };
+  wework = pkgs.callPackage ./pkgs/wework { };
 }
