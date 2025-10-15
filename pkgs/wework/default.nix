@@ -18,7 +18,9 @@
 , gtk3
 , libappindicator-gtk3
 , libdrm
+, libglvnd
 , libnotify
+, libpng
 , libpulseaudio
 , libuuid
 , libsecret
@@ -29,7 +31,10 @@
 , pango
 , systemd
 , xorg
+, zlib
 , libindicator-gtk3
+, curl
+, openssl_1_1
 }:
 
 stdenv.mkDerivation rec {
@@ -62,7 +67,9 @@ stdenv.mkDerivation rec {
     gtk3
     libappindicator-gtk3
     libdrm
+    libglvnd
     libnotify
+    libpng
     libpulseaudio
     libuuid
     libsecret
@@ -71,6 +78,7 @@ stdenv.mkDerivation rec {
     nspr
     nss
     pango
+    curl
     stdenv.cc.cc.lib
     systemd
     xorg.libX11
@@ -86,12 +94,16 @@ stdenv.mkDerivation rec {
     xorg.libXScrnSaver
     xorg.libxshmfence
     xorg.libXtst
+    zlib
     libindicator-gtk3
+    openssl_1_1
   ];
 
   # Ignore missing dependencies that are bundled or not needed
   autoPatchelfIgnoreMissingDeps = [
     "libcrypto.so.1.0.0"
+    "libssl.so.1.1"
+    "libcrypto.so.1.1"
   ];
 
   unpackPhase = ''
@@ -106,6 +118,29 @@ stdenv.mkDerivation rec {
 
     mkdir -p $out/share
     cp -r opt/apps/WXWorkLocalPro/files $out/share/wework
+
+    # Remove bundled libraries that are safe to replace (stable ABI, no allocator issues)
+    rm -f $out/share/wework/libz.so*
+    rm -f $out/share/wework/libpng16.so*
+    # Keep bundled libcurl, libstdc++, and OpenSSL 1.1 for ABI compatibility with vendor binaries
+    # Keep protobuf as bundled for ABI compatibility (app requires v20)
+
+    # Replace bundled EGL/GLES libraries with system libraries
+    rm -f $out/share/wework/libEGL.so*
+    rm -f $out/share/wework/libGLESv2.so*
+    ln -s ${libglvnd}/lib/libEGL.so.1 $out/share/wework/libEGL.so
+    ln -s ${libglvnd}/lib/libGLESv2.so.2 $out/share/wework/libGLESv2.so
+
+    # Build curl safeguard preload that duplicates string options
+    $CC -shared -fPIC -O2 \
+      -I${curl.dev}/include \
+      -o $out/share/wework/libcurl-guard.so ${./malloc-interceptor.c} \
+      -ldl
+
+    # Build allocator guard to ignore bogus frees in vendor protobuf
+    $CC -shared -fPIC -O2 \
+      -o $out/share/wework/libfree-guard.so ${./free-guard.c} \
+      -ldl -pthread
 
     # Install desktop file
     mkdir -p $out/share/applications
@@ -122,10 +157,14 @@ stdenv.mkDerivation rec {
     # Create wrapper script
     mkdir -p $out/bin
     makeWrapper $out/share/wework/wwlocal $out/bin/wework \
-      --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath buildInputs}:$out/share/wework" \
+      --prefix LD_LIBRARY_PATH : "$out/share/wework:${lib.makeLibraryPath buildInputs}" \
       --prefix PATH : "${lib.makeBinPath [ xorg.xdpyinfo ]}" \
+      --set LD_PRELOAD "$out/share/wework/libfree-guard.so:$out/share/wework/libcurl-guard.so" \
+      --set QTWEBENGINE_DISABLE_SANDBOX 1 \
       --set packagename wwlocal \
       --chdir "$out/share/wework" \
+      --add-flags "--disable-setuid-sandbox" \
+      --add-flags "--no-sandbox" \
       --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}}"
 
     runHook postInstall
