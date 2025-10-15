@@ -14,7 +14,7 @@ stdenv.mkDerivation rec {
     owner = "openHiTLS";
     repo = "openHiTLS";
     rev = "main";
-    sha256 = "sha256-I9/3POBnh/B0FeOmRZTP6ZiS99QN6Bhgsu070e67Tfs=";
+    sha256 = "sha256-6LqOPGnUx9mr1akApZf97kfNp0nEhrK9SRMY0hV+ZaI=";
   };
 
   nativeBuildInputs = [
