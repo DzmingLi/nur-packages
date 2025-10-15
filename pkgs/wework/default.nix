@@ -1,5 +1,6 @@
 { stdenv
 , lib
+, fetchurl
 , autoPatchelfHook
 , makeWrapper
 , alsa-lib
@@ -33,9 +34,12 @@
 
 stdenv.mkDerivation rec {
   pname = "wework";
-  version = "3.1.0.198N02";
+  version = "3.1.0.198N02-1";
 
-  src = ./signed_weworklocal_3.1.0.198N02.x86.UOSv20.deb;
+  src = fetchurl {
+    url = "https://dldir1.qq.com/wework/weworklocalapp/SVsEVVSIWIZPEAKypCsjps29acDcEcVUYXawZ1Ty56A/signed_weworklocal_3.1.0.198N02.x86.UOSv20.deb";
+    hash = "sha256-aB71aecXucdm8ENNNlKT5gW/eiuSN4QlmDn6SA8S8mQ=";
+  };
 
   nativeBuildInputs = [
     autoPatchelfHook
