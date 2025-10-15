@@ -9,9 +9,7 @@
   nix-update-script,
 }:
 let
-  inherit (python3Packages) buildPythonApplication setuptools requests tqdm;
-
-  inquirerpy = python3Packages.InquirerPy;
+  inherit (python3Packages) buildPythonApplication setuptools requests tqdm inquirerpy;
 
   pname = "waydroid-script";
   version = "0-unstable-2025-08-31";
