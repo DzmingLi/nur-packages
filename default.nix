@@ -30,5 +30,4 @@
       libboundscheck = pkgs.callPackage ./pkgs/libboundscheck { };
     };
   };
-  wework = pkgs.callPackage ./pkgs/wework { };
 }
