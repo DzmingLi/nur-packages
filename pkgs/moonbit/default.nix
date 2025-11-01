@@ -1,7 +1,7 @@
 { stdenv,lib,fetchzip,autoPatchelfHook, patchelf,makeWrapper}:
 let coreSrc = fetchzip{
   url = "https://cli.moonbitlang.com/cores/core-latest.tar.gz";
-  sha256 = "sha256-igtZ5ECm+p2dxWzI0SDa4kpUBpZ2S+hnqmVTdUUoQ1M=";
+  sha256 = "sha256-uK6EjEVsCyM4cJbLOrN+ygY4Zr9NANwZQLyOzf2oNMo=";
 };
 in
 stdenv.mkDerivation  {
