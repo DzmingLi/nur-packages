@@ -30,4 +30,5 @@
       libboundscheck = pkgs.callPackage ./pkgs/libboundscheck { };
     };
   };
+  windows-fonts = pkgs.callPackage ./pkgs/windows-fonts { };
 }
