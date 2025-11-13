@@ -16,19 +16,9 @@
 
   moonbit = pkgs.callPackage ./pkgs/moonbit { };
   waydroid-script = pkgs.callPackage ./pkgs/waydroid-script { };
-  # shiroa = pkgs.callPackage ./pkgs/shiroa { };
   huiwen-mincho = pkgs.callPackage ./pkgs/huiwen-mincho { };
   genryumin = pkgs.callPackage ./pkgs/genryumin { };
   TRWUDMincho = pkgs.callPackage ./pkgs/TRWUDMincho { };
-  libboundscheck = pkgs.callPackage ./pkgs/libboundscheck { };
-  openhitls = pkgs.callPackage ./pkgs/openhitls {
-    libboundscheck = pkgs.callPackage ./pkgs/libboundscheck { };
-  };
-  nginx-openhitls = pkgs.callPackage ./pkgs/nginx-openhitls {
-    libboundscheck = pkgs.callPackage ./pkgs/libboundscheck { };
-    openhitls = pkgs.callPackage ./pkgs/openhitls {
-      libboundscheck = pkgs.callPackage ./pkgs/libboundscheck { };
-    };
-  };
+
   windows-fonts = pkgs.callPackage ./pkgs/windows-fonts { };
 }
