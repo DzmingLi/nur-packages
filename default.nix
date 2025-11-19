@@ -20,5 +20,6 @@
   genryumin = pkgs.callPackage ./pkgs/genryumin { };
   TRWUDMincho = pkgs.callPackage ./pkgs/TRWUDMincho { };
 
+  gotham-fonts = pkgs.callPackage ./pkgs/gotham-fonts { };
   windows-fonts = pkgs.callPackage ./pkgs/windows-fonts { };
 }
