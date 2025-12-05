@@ -130,10 +130,10 @@ let
       # 复制桌面文件和图标
       cp -r usr/share/applications $out/share/
 
-      # 修改桌面文件中的路径
+      # 修改桌面文件中的路径（暂时使用占位符，将在 FHS 包装时进一步修改）
       substituteInPlace $out/share/applications/115Browser.desktop \
-        --replace-fail '/usr/local/115Browser/115.sh' '$out/bin/115browser' \
-        --replace-fail '/usr/local/115Browser/res/115Browser.png' '$out/opt/115browser/res/115Browser.png'
+        --replace-fail '/usr/local/115Browser/115.sh' 'EXEC_PLACEHOLDER' \
+        --replace-fail '/usr/local/115Browser/res/115Browser.png' 'ICON_PLACEHOLDER'
 
       # 创建启动脚本
       makeWrapper $out/opt/115browser/115Browser $out/bin/115browser \
@@ -220,6 +220,17 @@ buildFHSEnv {
   ]);
 
   runScript = "${unwrapped}/bin/115browser";
+
+  # 暴露 desktop 文件和图标
+  extraInstallCommands = ''
+    mkdir -p $out/share/applications
+    cp ${unwrapped}/share/applications/115Browser.desktop $out/share/applications/
+
+    # 替换占位符为实际的可执行文件和图标路径
+    substituteInPlace $out/share/applications/115Browser.desktop \
+      --replace-fail 'Exec=sh EXEC_PLACEHOLDER' "Exec=$out/bin/${pname}" \
+      --replace-fail 'Icon=ICON_PLACEHOLDER' 'Icon=${unwrapped}/opt/115browser/res/115Browser.png'
+  '';
 
   meta = unwrapped.meta // {
     mainProgram = pname;
