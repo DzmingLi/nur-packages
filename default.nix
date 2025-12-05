@@ -25,7 +25,4 @@
 
   # 115浏览器
   _115browser = pkgs.callPackage ./pkgs/115br { };
-
-  # Sangfor EasyConnect VPN client
-  easyconnect = pkgs.callPackage ./pkgs/easyconnect { };
 }
