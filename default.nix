@@ -25,4 +25,6 @@
 
   # 115浏览器
   _115browser = pkgs.callPackage ./pkgs/115br { };
+
+  baidunetdisk = pkgs.callPackage ./pkgs/baidunetdisk { };
 }
