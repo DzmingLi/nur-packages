@@ -4,11 +4,8 @@ set -euo pipefail
 PKG_FILE="pkgs/baidupcs-go/default.nix"
 API_URL="https://api.github.com/repos/qjfoidnh/BaiduPCS-Go/releases/latest"
 
-LATEST_TAG=$(
-  curl -sL "$API_URL" \
-    | grep -m1 '"tag_name":' \
-    | sed -E 's/.*"tag_name": "([^"]+)".*/\1/'
-)
+RELEASE_DATA=$(curl -sL "$API_URL")
+LATEST_TAG=$(echo "$RELEASE_DATA" | grep -m1 '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
 
 if [ -z "$LATEST_TAG" ]; then
   echo "Failed to fetch latest release tag."
