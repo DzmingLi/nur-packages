@@ -27,4 +27,5 @@
   _115browser = pkgs.callPackage ./pkgs/115br { };
 
   baidupcs-go = pkgs.callPackage ./pkgs/baidupcs-go { };
+  clash-speedtest = pkgs.callPackage ./pkgs/clash-speedtest { };
 }
