@@ -5,7 +5,8 @@ PKG_FILE="pkgs/baidupcs-go/default.nix"
 API_URL="https://api.github.com/repos/qjfoidnh/BaiduPCS-Go/releases/latest"
 
 RELEASE_DATA=$(curl -sL "$API_URL")
-LATEST_TAG=$(echo "$RELEASE_DATA" | grep -m1 '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+# Use a here-string to avoid SIGPIPE with pipefail when grep exits early.
+LATEST_TAG=$(grep -m1 '"tag_name":' <<<"$RELEASE_DATA" | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
 
 if [ -z "$LATEST_TAG" ]; then
   echo "Failed to fetch latest release tag."
