@@ -4,6 +4,7 @@
 , dpkg
 , autoPatchelfHook
 , makeWrapper
+, fetchurl
 , alsa-lib
 , at-spi2-atk
 , at-spi2-core
@@ -40,7 +41,10 @@ let
   pname = "_115browser";
   version = "36.0.0";
 
-  src = ./115br_v36.0.0.deb;
+  src = fetchurl {
+    url = "https://down.115.com/client/115pc/lin/115br_v36.0.0.deb";
+    sha256 = "sha256-E5+0421/SPHheTF+WtK9ixKHnnHTxP+Z2iaGVmG0/Eg=";
+  };
 
   # 编译磁盘空间欺骗库
   fakeDiskSpace = stdenv.mkDerivation {
