@@ -27,4 +27,7 @@
   _115browser = pkgs.callPackage ./pkgs/115br { };
 
   baidupcs-go = pkgs.callPackage ./pkgs/baidupcs-go { };
+
+  # 微信
+  wechat = pkgs.callPackage ./pkgs/wechat { };
 }
