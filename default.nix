@@ -22,15 +22,22 @@ let
         name: path:
         let
           pkg = pkgs.callPackage path { };
-          exportName =
-            if lib.isDerivation pkg then pkg.pname else pkg.pname;
         in
-        {
-          name = exportName;
-          value = pkg;
-        };
-      dirPkgs = builtins.listToAttrs (map (name: mkEntry name (dir + "/${name}")) (builtins.filter isDir names));
-      filePkgs = builtins.listToAttrs (map (name: mkEntry (lib.removeSuffix ".nix" name) (dir + "/${name}")) (builtins.filter isFile names));
+        if pkg ? pname then
+          {
+            name = pkg.pname;
+            value = pkg;
+          }
+        else
+          null;
+      dirPkgs =
+        builtins.listToAttrs
+          (builtins.filter (entry: entry != null)
+            (map (name: mkEntry name (dir + "/${name}")) (builtins.filter isDir names)));
+      filePkgs =
+        builtins.listToAttrs
+          (builtins.filter (entry: entry != null)
+            (map (name: mkEntry (lib.removeSuffix ".nix" name) (dir + "/${name}")) (builtins.filter isFile names)));
     in
     dirPkgs // filePkgs;
 
