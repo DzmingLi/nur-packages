@@ -16,7 +16,10 @@ let
     let
       entries = builtins.readDir dir;
       names = builtins.attrNames entries;
-      isDir = name: entries.${name} == "directory" && builtins.pathExists "${dir}/${name}/default.nix";
+      isDir =
+        name:
+        entries.${name} == "directory"
+        && (builtins.readDir "${dir}/${name}") ? "default.nix";
       isFile = name: entries.${name} == "regular" && lib.hasSuffix ".nix" name;
       dirPkgs = builtins.listToAttrs (map (name: {
         name = name;
