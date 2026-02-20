@@ -20,11 +20,11 @@ let
       isFile = name: entries.${name} == "regular" && lib.hasSuffix ".nix" name;
       dirPkgs = builtins.listToAttrs (map (name: {
         name = name;
-        value = pkgs.callPackage "${dir}/${name}" { };
+        value = pkgs.callPackage (dir + "/${name}") { };
       }) (builtins.filter isDir names));
       filePkgs = builtins.listToAttrs (map (name: {
         name = lib.removeSuffix ".nix" name;
-        value = pkgs.callPackage "${dir}/${name}" { };
+        value = pkgs.callPackage (dir + "/${name}") { };
       }) (builtins.filter isFile names));
     in
     dirPkgs // filePkgs;
