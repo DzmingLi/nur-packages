@@ -18,14 +18,19 @@ let
       names = builtins.attrNames entries;
       isDir = name: entries.${name} == "directory";
       isFile = name: entries.${name} == "regular" && lib.hasSuffix ".nix" name;
-      dirPkgs = builtins.listToAttrs (map (name: {
-        name = name;
-        value = pkgs.callPackage (dir + "/${name}") { };
-      }) (builtins.filter isDir names));
-      filePkgs = builtins.listToAttrs (map (name: {
-        name = lib.removeSuffix ".nix" name;
-        value = pkgs.callPackage (dir + "/${name}") { };
-      }) (builtins.filter isFile names));
+      mkEntry =
+        name: path:
+        let
+          pkg = pkgs.callPackage path { };
+          exportName =
+            if lib.isDerivation pkg then pkg.pname else pkg.pname;
+        in
+        {
+          name = exportName;
+          value = pkg;
+        };
+      dirPkgs = builtins.listToAttrs (map (name: mkEntry name (dir + "/${name}")) (builtins.filter isDir names));
+      filePkgs = builtins.listToAttrs (map (name: mkEntry (lib.removeSuffix ".nix" name) (dir + "/${name}")) (builtins.filter isFile names));
     in
     dirPkgs // filePkgs;
 
