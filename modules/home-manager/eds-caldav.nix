@@ -71,7 +71,7 @@ let
     sourceFile = pkgs.writeText "eds-caldav-${name}.source" sourceContent;
     eds = account.eds;
   in ''
-    _eds_dir="${config.xdg.dataHome}/evolution/sources"
+    _eds_dir="${config.xdg.configHome}/evolution/sources"
     $DRY_RUN_CMD mkdir -p "$_eds_dir"
     $DRY_RUN_CMD cp --no-preserve=mode "${sourceFile}" "$_eds_dir/eds-caldav-${name}.source"
   '' + lib.optionalString (eds.passwordFile != null) ''
