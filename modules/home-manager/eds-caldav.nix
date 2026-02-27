@@ -7,23 +7,33 @@ let
     (_: acc: acc.eds.enable && acc.remote != null && acc.remote.type == "caldav")
     cfg.accounts;
 
+  parseUrl = url: let
+    # Extract host and path from URL like https://host/path/
+    withoutScheme = lib.removePrefix "https://" (lib.removePrefix "http://" url);
+    parts = lib.splitString "/" withoutScheme;
+    host = builtins.head parts;
+    path = "/" + lib.concatStringsSep "/" (builtins.tail parts);
+  in { inherit host path; };
+
   mkEdsSource = name: account: let
     remote = account.remote;
     displayName = if account.eds.displayName != null then account.eds.displayName else name;
+    parsed = parseUrl remote.url;
   in lib.concatStringsSep "\n" (lib.filter (s: s != "") [
     "[Data Source]"
     "DisplayName=${displayName}"
     "Enabled=true"
-    "Parent="
-    ""
-    "[Calendar]"
-    "BackendName=caldav"
-    "Color=${account.eds.color}"
+    "Parent=caldav-stub"
     ""
     "[Authentication]"
-    (lib.optionalString (remote.userName != null) "User=${remote.userName}")
+    "Host=${parsed.host}"
     "Method=plain/password"
+    "Port=443"
     "ProxyUid=system-proxy"
+    "RememberPassword=true"
+    (lib.optionalString (remote.userName != null) "User=${remote.userName}")
+    "CredentialName="
+    "IsExternal=false"
     ""
     "[Security]"
     "Method=tls"
@@ -31,11 +41,28 @@ let
     "[Offline]"
     "StaySynchronized=true"
     ""
-    "[WebDAV]"
+    "[WebDAV Backend]"
     "AvoidIfmatch=false"
     "CalendarAutoSchedule=false"
-    "SoupUri=${remote.url}"
-    (lib.optionalString account.eds.trustSelfSignedCert "SslTrust=${remote.url}")
+    "Color="
+    "DisplayName=${displayName}"
+    "EmailAddress="
+    "ResourcePath=${parsed.path}"
+    "ResourceQuery="
+    (if account.eds.trustSelfSignedCert then "SslTrust=${remote.url}" else "SslTrust=")
+    "Order=4294967295"
+    "Timeout=90"
+    ""
+    "[Refresh]"
+    "Enabled=true"
+    "EnabledOnMeteredNetwork=true"
+    "IntervalMinutes=30"
+    ""
+    "[Calendar]"
+    "BackendName=caldav"
+    "Color=${account.eds.color}"
+    "Selected=true"
+    "Order=0"
   ]);
 
   # Generate the source file and optionally store password in libsecret
