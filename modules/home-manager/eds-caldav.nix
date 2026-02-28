@@ -78,6 +78,7 @@ let
     if [ -f "${eds.passwordFile}" ]; then
       _password=$(cat "${eds.passwordFile}" | tr -d '\n')
       ${pkgs.libsecret}/bin/secret-tool store --label="eds-caldav-${name}" \
+        --schema org.gnome.Evolution.Data.Source \
         e-source-uid "eds-caldav-${name}" <<< "$_password"
     fi
   '';
