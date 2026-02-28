@@ -12,7 +12,7 @@ in
 {
   config = lib.mkIf hasPlugins {
     # Disable the upstream read-only symlink for plugins.json
-    xdg.configFile."noctalia/plugins.json" = lib.mkForce {};
+    xdg.configFile."noctalia/plugins.json".enable = lib.mkForce false;
 
     # Write plugins.json as a mutable file so noctalia can update it at runtime
     home.activation.noctaliaMutablePlugins = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
