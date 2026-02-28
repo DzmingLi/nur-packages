@@ -76,9 +76,8 @@ let
     $DRY_RUN_CMD cp --no-preserve=mode "${sourceFile}" "$_eds_dir/eds-caldav-${name}.source"
   '' + lib.optionalString (eds.passwordFile != null) ''
     if [ -f "${eds.passwordFile}" ]; then
-      _password=$(cat "${eds.passwordFile}" | tr -d '\n')
+      _password=$(tr -d '\n' < "${eds.passwordFile}")
       ${pkgs.libsecret}/bin/secret-tool store --label="eds-caldav-${name}" \
-        --schema org.gnome.Evolution.Data.Source \
         e-source-uid "eds-caldav-${name}" <<< "$_password"
     fi
   '';
