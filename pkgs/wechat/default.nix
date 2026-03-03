@@ -90,16 +90,22 @@ appimageTools.wrapAppImage {
       --replace-fail 'Exec=AppRun %U' 'Exec=env GTK_IM_MODULE=fcitx QT_IM_MODULE=fcitx XMODIFIERS=@im=fcitx wechat %U'
 
     # Always preload keyhook so running "wechat" dumps SQLCipher key automatically.
-    mkdir -p $out/lib $out/bin
+    mkdir -p $out/lib
     cp ${keyHook}/lib/wxdump_keyhook.so $out/lib/
-    cat > $out/bin/wechat <<EOF
+
+    # Prepend env exports to the existing wrapper created by wrapAppImage.
+    cat > $out/bin/wechat.new <<'EOF'
     #!/bin/sh
-    APPDIR='${appimageContents}'
-    export LD_PRELOAD='$out/lib/wxdump_keyhook.so'
-    : "\${WX_KEY_OUT:=\${XDG_CACHE_HOME:-\$HOME/.cache}/wechat_key.log}"
+    export LD_PRELOAD='@LD_PRELOAD@'
+    if [ -z "''${WX_KEY_OUT:-}" ]; then
+      WX_KEY_OUT="''${XDG_CACHE_HOME:-$HOME/.cache}/wechat_key.log"
+    fi
     export WX_KEY_OUT
-    exec "\$APPDIR"/AppRun "\$@"
     EOF
+    substituteInPlace $out/bin/wechat.new \
+      --replace '@LD_PRELOAD@' "$out/lib/wxdump_keyhook.so"
+    tail -n +2 $out/bin/wechat >> $out/bin/wechat.new
+    mv $out/bin/wechat.new $out/bin/wechat
     chmod +x $out/bin/wechat
   '';
 
