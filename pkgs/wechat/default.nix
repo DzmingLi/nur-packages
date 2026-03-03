@@ -92,13 +92,13 @@ appimageTools.wrapAppImage {
     # Always preload keyhook so running "wechat" dumps SQLCipher key automatically.
     mkdir -p $out/lib $out/bin
     cp ${keyHook}/lib/wxdump_keyhook.so $out/lib/
-    cat > $out/bin/wechat <<'EOF'
+    cat > $out/bin/wechat <<EOF
     #!/bin/sh
     APPDIR='${appimageContents}'
-    export LD_PRELOAD='${"$out"}/lib/wxdump_keyhook.so'
-    : "${WX_KEY_OUT:=${XDG_CACHE_HOME:-$HOME/.cache}/wechat_key.log}"
+    export LD_PRELOAD='$out/lib/wxdump_keyhook.so'
+    : "\${WX_KEY_OUT:=\${XDG_CACHE_HOME:-\$HOME/.cache}/wechat_key.log}"
     export WX_KEY_OUT
-    exec "$APPDIR"/AppRun "$@"
+    exec "\$APPDIR"/AppRun "\$@"
     EOF
     chmod +x $out/bin/wechat
   '';
