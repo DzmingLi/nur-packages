@@ -6,7 +6,9 @@
 # commands such as:
 #     nix-build -A mypackage
 
-{ pkgs ? import <nixpkgs> { }, haumea }:
+{ pkgs ? import <nixpkgs> { }
+, haumea ? { lib = import (builtins.fetchTarball "https://github.com/nix-community/haumea/archive/6006638de0f991dc33d0590819f58d09bec27379.tar.gz") {}; }
+}:
 
 {
   # The `lib`, `modules`, and `overlays` names are special
