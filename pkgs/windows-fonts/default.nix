@@ -47,7 +47,7 @@ stdenvNoCC.mkDerivation rec {
     runHook preInstall
 
     mkdir -p $out/share/fonts/truetype
-    cp -a ${src}/truetype/. $out/share/fonts/truetype/
+    cp -a ${src}/*.ttf $out/share/fonts/truetype/
 
     runHook postInstall
   '';
