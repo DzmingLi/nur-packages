@@ -6,30 +6,15 @@
 # commands such as:
 #     nix-build -A mypackage
 
-{ pkgs ? import <nixpkgs> { } }:
+{ pkgs ? import <nixpkgs> { }, haumea }:
 
-let
-  lib = pkgs.lib;
-in
 {
   # The `lib`, `modules`, and `overlays` names are special
   lib = import ./lib { inherit pkgs; }; # functions
   modules = import ./modules; # NixOS modules
   overlays = import ./overlays; # nixpkgs overlays
-  _115browser = pkgs.callPackage ./pkgs/115br { };
-  baidupcs-go = pkgs.callPackage ./pkgs/baidupcs-go { };
-  blueprint-mcp = pkgs.callPackage ./pkgs/blueprint-mcp { };
-  context7-mcp = pkgs.callPackage ./pkgs/context7-mcp { };
-  genryumin-tc = pkgs.callPackage ./pkgs/genryumin { };
-  gotham-fonts = pkgs.callPackage ./pkgs/gotham-fonts { };
-  hust-network-login = pkgs.callPackage ./pkgs/hust-network-login { };
-  huiwen-mincho = pkgs.callPackage ./pkgs/huiwen-mincho { };
-  moonbit = pkgs.callPackage ./pkgs/moonbit { };
-  nix-plugin-pijul = pkgs.callPackage ./pkgs/nix-plugin-pijul { };
-  quarkpantool = pkgs.callPackage ./pkgs/quarkpantool { };
-  TRWUDMincho = pkgs.callPackage ./pkgs/TRWUDMincho { };
-  waydroid-script = pkgs.callPackage ./pkgs/waydroid-script { };
-  wechat = pkgs.callPackage ./pkgs/wechat { };
-  windows-fonts = pkgs.callPackage ./pkgs/windows-fonts { };
-  zju-connect = pkgs.callPackage ./pkgs/zju-connect { };
-}
+} // builtins.mapAttrs (_: v: v.default) (haumea.lib.load {
+  src = ./pkgs;
+  inputs = builtins.removeAttrs pkgs [ "self" "super" "root" ];
+  loader = haumea.lib.loaders.callPackage;
+})

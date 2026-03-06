@@ -1,4 +1,4 @@
-{ lib, stdenvNoCC, ... }:
+{ lib, stdenvNoCC,fetchpijul, ... }:
 let
   inherit (lib)
     maintainers
@@ -14,7 +14,10 @@ let
     redistributable = false;
   };
 
-  src = ./files;
+  src = fetchpijul{
+    url="https://nest.pijul.com/DzmingLi/windows-fonts";
+    hash="";
+  };
 
   meta = {
     inherit
@@ -23,14 +26,6 @@ let
 
     description = "Windows fonts distributed by Microsoft Microsoft Corporation Inc.";
     homepage = "https://learn.microsoft.com/en-us/typography/fonts/font-faq";
-
-    longDescription = ''
-      Windows fonts are proprietary software distributed by Microsoft Corporation Inc.
-
-      This package does not give you any rights to any of its included
-      fonts.
-    '';
-
     maintainers = with maintainers; [ brsvh ];
     redistributable = false;
   };

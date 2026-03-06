@@ -1,7 +1,13 @@
 {
   description = "My personal NUR repository";
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-  outputs = { self, nixpkgs }:
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    haumea = {
+      url = "github:nix-community/haumea";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+  outputs = { self, nixpkgs, haumea }:
     let
       forAllSystems = nixpkgs.lib.genAttrs nixpkgs.lib.systems.flakeExposed;
     in
@@ -11,8 +17,9 @@
           inherit system;
           overlays = [ self.overlays.default ];
         };
+        inherit haumea;
       });
-      overlays.default = import ./overlay.nix;
+      overlays.default = import ./overlay.nix { inherit haumea; };
       packages = forAllSystems (system: nixpkgs.lib.filterAttrs (_: v: nixpkgs.lib.isDerivation v) self.legacyPackages.${system});
       homeManagerModules = (import ./modules).home-manager;
       nixosModules = (import ./modules).nixos;

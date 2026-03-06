@@ -39,7 +39,7 @@ buildGoModule (finalAttrs: {
   meta = {
     mainProgram = "BaiduPCS-Go";
     maintainers = with lib.maintainers; [ xddxdd ];
-    description = "Baidu Netdisk commandline client, mimicking Linux shell file handling commands";
+    description = "仿 Linux shell 文件处理命令的百度网盘命令行客户端";
     homepage = "https://github.com/qjfoidnh/BaiduPCS-Go";
     license = lib.licenses.asl20;
   };
