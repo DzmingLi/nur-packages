@@ -21,6 +21,9 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
+      - name: Update flake inputs
+        run: nix flake update
+
       - name: Install ripgrep
         run: |
           sudo apt-get update
@@ -53,7 +56,8 @@ jobs:
           fi
 
           echo "Committing updated hashes..."
-          git add pkgs/baidupcs-go/default.nix \
+          git add flake.lock \
+            pkgs/baidupcs-go/default.nix \
             pkgs/moonbit/default.nix \
             pkgs/quarkpantool/default.nix \
             pkgs/wechat/default.nix \
