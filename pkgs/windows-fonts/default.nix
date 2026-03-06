@@ -16,7 +16,7 @@ let
 
   src = fetchpijul{
     url="https://nest.pijul.com/DzmingLi/windows-fonts";
-    hash="";
+    hash="sha256-TBqFS+qs86RyOMOori8mWKscgJ3r1IzI0VRnPpAGkw8=";
   };
 
   meta = {
