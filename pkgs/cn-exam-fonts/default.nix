@@ -10,7 +10,7 @@ stdenv.mkDerivation {
 
   installPhase = ''
     mkdir -p $out/share/fonts/truetype/
-    cp -r *.otf $out/share/fonts/truetype/
+    cp -r *.ttf $out/share/fonts/truetype/
   '';
 
   meta = with pkgs.lib; {
