@@ -7,7 +7,19 @@
 #     nix-build -A mypackage
 
 { pkgs ? import <nixpkgs> { }
-, haumea ? { lib = import (builtins.fetchTarball "https://github.com/nix-community/haumea/archive/6006638de0f991dc33d0590819f58d09bec27379.tar.gz") {}; }
+, haumea ?
+  let
+    lock = builtins.fromJSON (builtins.readFile ./flake.lock);
+    h = lock.nodes.haumea.locked;
+  in
+  {
+    lib = import
+      (builtins.fetchTarball {
+        url = "https://github.com/${h.owner}/${h.repo}/archive/${h.rev}.tar.gz";
+        sha256 = h.narHash;
+      })
+      { };
+  }
 }:
 
 {
