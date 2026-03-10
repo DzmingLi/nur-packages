@@ -65,7 +65,7 @@ let
       "https://dldir1.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.AppImage"
       "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.AppImage"
     ];
-    hash = "sha256-Pfl81lNVlMJWyPqFli1Af2q8pRLujcKCjYoILCKDx8U=";
+    hash = "sha256-XxAvFnlljqurGPDgRr+DnuCKbdVvgXBPh02DLHY3Oz8=";
   };
 
   appimageContents = appimageTools.extract {
