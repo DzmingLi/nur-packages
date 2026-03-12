@@ -137,7 +137,11 @@ let
       const dc0 = getCookieValue(cookieStr, 'd_c0');
       const xzse93 = '101_3_3.0';
       const f = xzse93 + '+' + apiPath + '+' + dc0;
-      const xzse96 = '2.0_' + g_encrypt(md5(f));
+      const hash = md5(f);
+      const xzse96 = '2.0_' + g_encrypt(hash);
+      console.log('SIGN dc0=' + dc0.substring(0, 25) + '...');
+      console.log('SIGN path=' + apiPath.substring(0, 80) + '...');
+      console.log('SIGN md5=' + hash);
       return { 'x-zse-96': xzse96, 'x-zse-93': xzse93, 'x-app-za': 'OS=Web' };
     }
 
@@ -200,9 +204,13 @@ let
       const signed = getSignedHeaders(apiPath, cookieStr);
       console.log("browserApiGet:", url.substring(0, 120));
 
-      // Intercept this request and inject signed headers + cookie
-      await page.route(url, async route => {
+      let routeHit = false;
+      // Use glob pattern to avoid URL encoding mismatch
+      await page.route("**/api/v4/**", async route => {
+        routeHit = true;
+        console.log("ROUTE intercepted:", route.request().url().substring(0, 100));
         const reqHeaders = route.request().headers();
+        console.log("ROUTE original cookie:", (reqHeaders.cookie || "").substring(0, 80) + "...");
         await route.continue({
           headers: {
             ...reqHeaders,
@@ -215,7 +223,6 @@ let
         });
       });
 
-      // fetch() from browser context — browser TLS fingerprint, route adds headers
       const result = await page.evaluate(async (fetchUrl) => {
         try {
           const res = await fetch(fetchUrl, { credentials: "include" });
@@ -226,7 +233,8 @@ let
         }
       }, url);
 
-      await page.unroute(url).catch(() => {});
+      await page.unroute("**/api/v4/**").catch(() => {});
+      console.log("Route hit:", routeHit);
       console.log("Response:", result.status, result.body.substring(0, 200));
 
       if (result.status !== 200) {
