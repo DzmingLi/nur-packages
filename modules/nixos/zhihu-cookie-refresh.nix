@@ -191,102 +191,79 @@ let
       return xml;
     }
 
-    // ========== Node.js HTTPS request (like RSSHub's ofetch) ==========
+    // ========== Browser API request via page.route() ==========
+    // Node.js TLS fingerprint is blocked by Zhihu, so we MUST use the browser.
+    // page.route() lets us inject signed headers while the browser handles TLS + cookies.
 
-    const https = require('https');
-
-    function zhihuGet(apiPath, cookieStr, referer) {
-      const signedHeaders = getSignedHeaders(apiPath, cookieStr);
-      const headers = {
-        "x-api-version": "3.0.91",
-        "x-zse-96": signedHeaders["x-zse-96"],
-        "x-zse-93": signedHeaders["x-zse-93"],
-        "x-app-za": "OS=Web",
-        "cookie": cookieStr,
-        "Referer": referer,
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-      };
+    async function browserApiGet(page, apiPath, cookieStr) {
       const url = "https://www.zhihu.com" + apiPath;
-      console.log("GET", url.substring(0, 120));
-      return new Promise((resolve, reject) => {
-        const urlObj = new URL(url);
-        const req = https.request({
-          hostname: urlObj.hostname,
-          path: urlObj.pathname + urlObj.search,
-          method: "GET",
-          headers: headers,
-        }, (res) => {
-          let data = "";
-          res.on("data", chunk => data += chunk);
-          res.on("end", () => {
-            console.log("Response:", res.statusCode, data.substring(0, 200));
-            if (res.statusCode !== 200) {
-              resolve({ _error: res.statusCode, _body: data.substring(0, 300) });
-            } else {
-              try { resolve(JSON.parse(data)); }
-              catch { resolve({ _error: "parse_error", _body: data.substring(0, 300) }); }
-            }
-          });
+      const signed = getSignedHeaders(apiPath, cookieStr);
+      console.log("browserApiGet:", url.substring(0, 120));
+
+      // Intercept this request and inject signed headers + cookie
+      await page.route(url, async route => {
+        const reqHeaders = route.request().headers();
+        await route.continue({
+          headers: {
+            ...reqHeaders,
+            "x-api-version": "3.0.91",
+            "x-zse-96": signed["x-zse-96"],
+            "x-zse-93": signed["x-zse-93"],
+            "x-app-za": "OS=Web",
+            "cookie": cookieStr,
+          },
         });
-        req.on("error", e => reject(e));
-        req.end();
       });
+
+      // fetch() from browser context — browser TLS fingerprint, route adds headers
+      const result = await page.evaluate(async (fetchUrl) => {
+        try {
+          const res = await fetch(fetchUrl, { credentials: "include" });
+          const text = await res.text();
+          return { status: res.status, body: text.substring(0, 50000) };
+        } catch (e) {
+          return { status: 0, body: e.message };
+        }
+      }, url);
+
+      await page.unroute(url).catch(() => {});
+      console.log("Response:", result.status, result.body.substring(0, 200));
+
+      if (result.status !== 200) {
+        return { _error: result.status, _body: result.body.substring(0, 300) };
+      }
+      try { return JSON.parse(result.body); }
+      catch { return { _error: "parse_error", _body: result.body.substring(0, 300) }; }
     }
 
-    // Get user profile via SSR page (like RSSHub posts.ts)
-    function zhihuGetProfile(cookieStr, usertype, userId) {
-      const pageApiPath = "/" + (usertype === "org" ? "org" : "people") + "/" + userId;
-      const signedHeaders = getSignedHeaders(pageApiPath, cookieStr);
-      const referer = "https://www.zhihu.com/" + usertype + "/" + userId + "/";
-      const headers = {
-        "x-api-version": "3.0.91",
-        "x-zse-96": signedHeaders["x-zse-96"],
-        "x-zse-93": signedHeaders["x-zse-93"],
-        "x-app-za": "OS=Web",
-        "cookie": cookieStr,
-        "Referer": referer,
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-      };
-      const url = "https://www.zhihu.com" + pageApiPath;
-      console.log("GET profile:", url);
-      return new Promise((resolve, reject) => {
-        const urlObj = new URL(url);
-        const req = https.request({
-          hostname: urlObj.hostname,
-          path: urlObj.pathname,
-          method: "GET",
-          headers: headers,
-        }, (res) => {
-          let data = "";
-          res.on("data", chunk => data += chunk);
-          res.on("end", () => {
-            if (res.statusCode !== 200) { resolve(null); return; }
-            const match = data.match(/id="js-initialData"[^>]*>(.*?)<\/script/s);
-            if (!match) { resolve(null); return; }
-            try {
-              const json = JSON.parse(match[1]);
-              const users = json.initialState && json.initialState.entities && json.initialState.entities.users;
-              resolve((users && users[userId]) || null);
-            } catch { resolve(null); }
-          });
-        });
-        req.on("error", () => resolve(null));
-        req.end();
+    // Get user profile from SSR page (browser navigation)
+    async function getProfile(page, usertype, userId) {
+      const prefix = usertype === "org" ? "org" : "people";
+      await page.goto("https://www.zhihu.com/" + prefix + "/" + userId, {
+        waitUntil: "domcontentloaded", timeout: 30000,
       });
+      if (page.url().includes("unhuman")) return null;
+      const data = await page.evaluate(() => {
+        const el = document.getElementById("js-initialData");
+        if (!el) return null;
+        try { return JSON.parse(el.textContent); } catch { return null; }
+      });
+      if (!data) return null;
+      const users = data.initialState && data.initialState.entities && data.initialState.entities.users;
+      return (users && users[userId]) || null;
     }
 
-    // ========== Posts scraper (follows RSSHub posts.ts exactly) ==========
+    // ========== Posts scraper ==========
 
-    async function scrapePosts(usertype, userId, cookieStr) {
+    async function scrapePosts(page, usertype, userId, cookieStr) {
       const prefix = usertype === "org" ? "org" : "people";
       const apiPrefix = usertype === "org" ? "org" : "members";
       console.log("Scraping posts: /" + prefix + "/" + userId);
 
-      // Get profile (like RSSHub)
-      const profile = await zhihuGetProfile(cookieStr, usertype, userId);
+      const profile = await getProfile(page, usertype, userId);
       const userName = (profile && profile.name) || userId;
 
-      // Articles API (identical to RSSHub posts.ts)
+      // Articles API — URLSearchParams like RSSHub posts.ts
       const articleParams = new URLSearchParams({
         include: "data[*].comment_count,suggest_edit,is_normal,thumbnail_extra_info,thumbnail,can_comment,comment_permission,admin_closed_comment,content,voteup_count,created,updated,upvoted_followees,voting,review_info,reaction_instruction,is_labeled,label_info;data[*].vessay_info;data[*].author.badge[?(type=best_answerer)].topics;data[*].author.vip_info;",
         offset: "0",
@@ -294,9 +271,8 @@ let
         sort_by: "created",
       });
       const apiPath = "/api/v4/" + apiPrefix + "/" + userId + "/articles?" + articleParams.toString();
-      const referer = "https://www.zhihu.com/" + usertype + "/" + userId + "/posts";
 
-      const resp = await zhihuGet(apiPath, cookieStr, referer);
+      const resp = await browserApiGet(page, apiPath, cookieStr);
 
       if (resp && resp._error) {
         console.error("Articles API error:", resp._error, resp._body || "");
@@ -319,22 +295,21 @@ let
       console.log("Got " + items.length + " articles for " + userName);
       return items.length > 0 ? {
         title: userName + " 的知乎文章",
-        link: referer,
+        link: "https://www.zhihu.com/" + usertype + "/" + userId + "/posts",
         description: (profile && profile.headline) || "",
         items,
       } : null;
     }
 
-    // ========== Answers scraper (follows RSSHub answers.ts exactly) ==========
+    // ========== Answers scraper ==========
 
-    async function scrapeAnswers(userId, cookieStr) {
+    async function scrapeAnswers(page, userId, cookieStr) {
       console.log("Scraping answers: /people/" + userId);
 
-      // Answers API (identical to RSSHub answers.ts — raw string, not URLSearchParams)
+      // Answers API — raw string like RSSHub answers.ts
       const apiPath = "/api/v4/members/" + userId + "/answers?limit=7&include=data[*].is_normal,content";
-      const referer = "https://www.zhihu.com/people/" + userId + "/activities";
 
-      const resp = await zhihuGet(apiPath, cookieStr, referer);
+      const resp = await browserApiGet(page, apiPath, cookieStr);
 
       if (resp && resp._error) {
         console.error("Answers API error:", resp._error, resp._body || "");
@@ -466,9 +441,9 @@ let
               await new Promise(r => setTimeout(r, 2000));
               let result = null;
               if (feed.type === 'posts') {
-                result = await scrapePosts(feed.usertype || 'people', feed.id, cookieStr);
+                result = await scrapePosts(page, feed.usertype || 'people', feed.id, cookieStr);
               } else if (feed.type === 'answers') {
-                result = await scrapeAnswers(feed.id, cookieStr);
+                result = await scrapeAnswers(page, feed.id, cookieStr);
               } else {
                 console.error('Unknown feed type: ' + feed.type);
                 continue;
