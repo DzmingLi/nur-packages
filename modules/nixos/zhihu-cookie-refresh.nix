@@ -268,26 +268,26 @@ let
       }
 
       let userName = userId;
-      let headline = '';
+      let headline = "";
       let items = [];
 
-      if (result.source === 'ssr') {
+      if (result.source === "ssr") {
         const entities = result.data.initialState && result.data.initialState.entities;
         if (!entities) return null;
         const users = entities.users;
-        if (users && users[userId]) { userName = users[userId].name || userId; headline = users[userId].headline || ''; }
+        if (users && users[userId]) { userName = users[userId].name || userId; headline = users[userId].headline || ""; }
         const articles = entities.articles;
-        if (articles && typeof articles === 'object') {
+        if (articles && typeof articles === "object") {
           items = Object.values(articles)
             .filter(a => a && a.title)
             .sort((a, b) => (b.created || 0) - (a.created || 0))
             .map(a => ({
               title: a.title,
-              link: 'https://zhuanlan.zhihu.com/p/' + a.id,
-              description: a.content || a.excerpt || '',
-              pubDate: a.created ? new Date(a.created * 1000).toUTCString() : '',
+              link: "https://zhuanlan.zhihu.com/p/" + a.id,
+              description: a.content || a.excerpt || "",
+              pubDate: a.created ? new Date(a.created * 1000).toUTCString() : "",
               author: (a.author && a.author.name) || userName,
-              guid: 'zhihu-article-' + a.id,
+              guid: "zhihu-article-" + a.id,
             }));
         }
       } else {
@@ -296,19 +296,19 @@ let
         if (apiResp && Array.isArray(apiResp.data)) {
           items = apiResp.data.map(a => ({
             title: a.title,
-            link: 'https://zhuanlan.zhihu.com/p/' + a.id,
-            description: a.content || '',
-            pubDate: a.created ? new Date(a.created * 1000).toUTCString() : '',
+            link: "https://zhuanlan.zhihu.com/p/" + a.id,
+            description: a.content || "",
+            pubDate: a.created ? new Date(a.created * 1000).toUTCString() : "",
             author: (a.author && a.author.name) || userName,
-            guid: 'zhihu-article-' + a.id,
+            guid: "zhihu-article-" + a.id,
           }));
           if (apiResp.data[0] && apiResp.data[0].author) userName = apiResp.data[0].author.name || userId;
         }
       }
 
-      console.log('Got ' + items.length + ' articles (' + result.source + ')');
+      console.log("Got " + items.length + " articles (" + result.source + ")");
       return items.length > 0 ? {
-        title: userName + ' 的知乎文章',
+        title: userName + " 的知乎文章",
         link: pageUrl,
         description: headline,
         items,
@@ -318,42 +318,42 @@ let
     // ========== Answers scraper ==========
 
     async function scrapeAnswers(page, userId) {
-      console.log('Scraping answers: /people/' + userId);
+      console.log("Scraping answers: /people/" + userId);
 
-      const pageUrl = 'https://www.zhihu.com/people/' + userId + '/answers';
-      const apiPattern = '/api/v4/members/' + userId + '/answers';
+      const pageUrl = "https://www.zhihu.com/people/" + userId + "/answers";
+      const apiPattern = "/api/v4/members/" + userId + "/answers";
 
       const result = await navigateAndIntercept(page, pageUrl, apiPattern);
 
       if (!result) {
-        console.error('No data for answers/' + userId);
+        console.error("No data for answers/" + userId);
         return null;
       }
 
       let userName = userId;
-      let headline = '';
+      let headline = "";
       let items = [];
 
-      if (result.source === 'ssr') {
+      if (result.source === "ssr") {
         const entities = result.data.initialState && result.data.initialState.entities;
         if (!entities) return null;
         const users = entities.users;
-        if (users && users[userId]) { userName = users[userId].name || userId; headline = users[userId].headline || ''; }
+        if (users && users[userId]) { userName = users[userId].name || userId; headline = users[userId].headline || ""; }
         const answers = entities.answers;
         const questions = entities.questions || {};
-        if (answers && typeof answers === 'object') {
+        if (answers && typeof answers === "object") {
           items = Object.values(answers)
             .filter(a => a && a.id)
             .sort((a, b) => (b.created_time || 0) - (a.created_time || 0))
             .map(a => {
               const q = (a.question && questions[a.question]) || a.question || {};
               return {
-                title: q.title || '',
-                link: 'https://www.zhihu.com/question/' + (q.id || 0) + '/answer/' + a.id,
-                description: a.content || a.excerpt || '',
-                pubDate: a.created_time ? new Date(a.created_time * 1000).toUTCString() : '',
+                title: q.title || "",
+                link: "https://www.zhihu.com/question/" + (q.id || 0) + "/answer/" + a.id,
+                description: a.content || a.excerpt || "",
+                pubDate: a.created_time ? new Date(a.created_time * 1000).toUTCString() : "",
                 author: (a.author && a.author.name) || userName,
-                guid: 'zhihu-answer-' + a.id,
+                guid: "zhihu-answer-" + a.id,
               };
             }).filter(i => i.title);
         }
@@ -361,20 +361,20 @@ let
         const apiResp = result.data;
         if (apiResp && Array.isArray(apiResp.data)) {
           items = apiResp.data.map(a => ({
-            title: (a.question && a.question.title) || '',
-            link: 'https://www.zhihu.com/question/' + (a.question && a.question.id) + '/answer/' + a.id,
-            description: a.content || '',
-            pubDate: a.created_time ? new Date(a.created_time * 1000).toUTCString() : '',
+            title: (a.question && a.question.title) || "",
+            link: "https://www.zhihu.com/question/" + (a.question && a.question.id) + "/answer/" + a.id,
+            description: a.content || "",
+            pubDate: a.created_time ? new Date(a.created_time * 1000).toUTCString() : "",
             author: (a.author && a.author.name) || userName,
-            guid: 'zhihu-answer-' + a.id,
+            guid: "zhihu-answer-" + a.id,
           })).filter(i => i.title);
           if (apiResp.data[0] && apiResp.data[0].author) userName = apiResp.data[0].author.name || userId;
         }
       }
 
-      console.log('Got ' + items.length + ' answers (' + result.source + ')');
+      console.log("Got " + items.length + " answers (" + result.source + ")");
       return items.length > 0 ? {
-        title: userName + ' 的知乎回答',
+        title: userName + " 的知乎回答",
         link: pageUrl,
         description: headline,
         items,
