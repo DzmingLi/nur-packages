@@ -29,7 +29,7 @@ let
       return fallbackSeedCookies;
     }
 
-    // Launch Chromium directly (no Playwright automation flags) and get CDP endpoint
+    // Launch Chromium directly with WebGL support and no automation flags
     function launchChromium() {
       return new Promise((resolve, reject) => {
         const proc = spawn(process.env.CHROMIUM_EXEC_PATH, [
@@ -41,6 +41,10 @@ let
           '--proxy-server=direct://',
           '--window-size=1920,1080',
           '--lang=zh-CN',
+          '--disable-blink-features=AutomationControlled',
+          '--use-gl=angle',
+          '--use-angle=swiftshader',
+          '--enable-unsafe-swiftshader',
           'about:blank',
         ], { stdio: ['pipe', 'pipe', 'pipe'] });
 
@@ -86,6 +90,12 @@ let
         await context.addCookies(cookieObjects);
 
         const page = context.pages()[0] || await context.newPage();
+
+        // Hide navigator.webdriver via CDP (set before page load)
+        const cdp = await context.newCDPSession(page);
+        await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+          source: 'Object.defineProperty(navigator, "webdriver", {get: () => false});',
+        });
 
         // Capture console errors
         page.on('console', msg => {
