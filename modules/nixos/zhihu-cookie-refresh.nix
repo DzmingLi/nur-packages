@@ -209,44 +209,80 @@ let
     // Navigate to page, intercept Zhihu's own API responses, and extract data.
     // This avoids manually signing API requests — the browser's own JS does it.
     async function navigateAndIntercept(page, pageUrl, apiPattern) {
-      console.log('Navigating to', pageUrl);
+      console.log("Navigating to", pageUrl);
       let apiData = null;
+      const apiCalls = [];
 
-      // Listen for matching API responses before navigating
-      const responsePromise = page.waitForResponse(
-        resp => resp.url().includes(apiPattern) && resp.status() === 200,
-        { timeout: 20000 }
-      ).then(async resp => {
-        console.log('Intercepted API:', resp.url().substring(0, 100));
-        apiData = await resp.json().catch(() => null);
-      }).catch(e => {
-        console.log('No API response intercepted:', e.message);
+      // Log ALL API responses for debugging
+      const apiListener = resp => {
+        const url = resp.url();
+        if (url.includes("/api/")) {
+          apiCalls.push(resp.status() + " " + url.substring(0, 120));
+        }
+        if (url.includes(apiPattern) && resp.status() === 200 && !apiData) {
+          resp.json().then(d => { apiData = d; }).catch(() => {});
+        }
+      };
+      page.on("response", apiListener);
+
+      await page.goto(pageUrl, { waitUntil: "networkidle", timeout: 30000 });
+      console.log("Page loaded:", page.url());
+      // Log page debug info
+      const debugInfo = await page.evaluate(() => {
+        return {
+          title: document.title,
+          bodyLen: document.body.innerText.length,
+          hasInitialData: !!document.getElementById("js-initialData"),
+          scripts: Array.from(document.querySelectorAll("script")).filter(s => s.textContent.includes("initialState")).length,
+          h1: document.querySelector("h1") ? document.querySelector("h1").textContent.substring(0, 50) : "",
+          metaDesc: document.querySelector("meta[name=description]") ? document.querySelector("meta[name=description]").content.substring(0, 80) : "",
+        };
       });
+      console.log("Page debug:", JSON.stringify(debugInfo));
+      console.log("API calls seen:", apiCalls.length, apiCalls.join(" | ").substring(0, 500));
 
-      await page.goto(pageUrl, { waitUntil: 'networkidle', timeout: 30000 });
-      console.log('Page loaded:', page.url());
-
-      // Wait for the response promise (may already be resolved)
-      await responsePromise;
-
-      if (apiData) return { source: 'api', data: apiData };
+      if (apiData) { page.removeListener("response", apiListener); return { source: "api", data: apiData }; }
 
       // Fallback: SSR data
       const ssrData = await extractInitialData(page);
-      if (ssrData) return { source: 'ssr', data: ssrData };
+      if (ssrData) { page.removeListener("response", apiListener); return { source: "ssr", data: ssrData }; }
 
-      // Fallback: try scrolling to trigger lazy-load API call
-      console.log('Scrolling to trigger API call...');
+      // Fallback: wait a bit more for JS to run, then scroll
+      console.log("Waiting for JS to load content...");
+      await new Promise(r => setTimeout(r, 5000));
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      const retryPromise = page.waitForResponse(
-        resp => resp.url().includes(apiPattern) && resp.status() === 200,
-        { timeout: 10000 }
-      ).then(async resp => {
-        apiData = await resp.json().catch(() => null);
-      }).catch(() => {});
-      await retryPromise;
+      await new Promise(r => setTimeout(r, 3000));
 
-      if (apiData) return { source: 'api-scroll', data: apiData };
+      console.log("After scroll API calls:", apiCalls.length);
+      if (apiData) { page.removeListener("response", apiListener); return { source: "api-scroll", data: apiData }; }
+
+      // Fallback: extract from DOM
+      const domData = await page.evaluate(() => {
+        // Try to find article/answer items in the rendered DOM
+        const items = [];
+        // Zhihu article list items
+        document.querySelectorAll(".ArticleItem, .ContentItem, [data-za-detail-view-id]").forEach(el => {
+          const titleEl = el.querySelector("h2 a, .ContentItem-title a, a[data-za-detail-view-element_name=Title]");
+          const contentEl = el.querySelector(".RichContent-inner, .RichText");
+          const timeEl = el.querySelector("time, .ContentItem-time");
+          if (titleEl) {
+            items.push({
+              title: titleEl.textContent.trim(),
+              link: titleEl.href || "",
+              description: contentEl ? contentEl.innerHTML.substring(0, 5000) : "",
+              time: timeEl ? timeEl.getAttribute("datetime") || timeEl.textContent : "",
+            });
+          }
+        });
+        return items;
+      });
+      if (domData && domData.length > 0) {
+        console.log("DOM extraction got " + domData.length + " items");
+        page.removeListener("response", apiListener);
+        return { source: "dom", data: domData };
+      }
+
+      page.removeListener("response", apiListener);
       return null;
     }
 
@@ -271,7 +307,16 @@ let
       let headline = "";
       let items = [];
 
-      if (result.source === "ssr") {
+      if (result.source === "dom") {
+        items = result.data.map((d, i) => ({
+          title: d.title,
+          link: d.link,
+          description: d.description,
+          pubDate: d.time ? new Date(d.time).toUTCString() : "",
+          author: userName,
+          guid: "zhihu-article-dom-" + i,
+        }));
+      } else if (result.source === "ssr") {
         const entities = result.data.initialState && result.data.initialState.entities;
         if (!entities) return null;
         const users = entities.users;
@@ -334,7 +379,16 @@ let
       let headline = "";
       let items = [];
 
-      if (result.source === "ssr") {
+      if (result.source === "dom") {
+        items = result.data.map((d, i) => ({
+          title: d.title,
+          link: d.link,
+          description: d.description,
+          pubDate: d.time ? new Date(d.time).toUTCString() : "",
+          author: userName,
+          guid: "zhihu-answer-dom-" + i,
+        }));
+      } else if (result.source === "ssr") {
         const entities = result.data.initialState && result.data.initialState.entities;
         if (!entities) return null;
         const users = entities.users;
