@@ -10,11 +10,11 @@ let
   refreshScript = pkgs.writeText "zhihu-cookie-refresh.js" ''
     const { chromium } = require('${pkgs.playwright-driver}');
     const { readFileSync, writeFileSync } = require('fs');
+    const https = require('https');
 
     const fallbackSeedCookies = ${builtins.toJSON cfg.seedCookies};
     const envFile = process.env.ENV_FILE;
 
-    // Try to read cookies from previous refresh; fall back to hardcoded seed
     function getSeedCookies() {
       try {
         const content = readFileSync(envFile, 'utf8');
@@ -26,6 +26,20 @@ let
       } catch {}
       console.log('Using fallback seed cookies');
       return fallbackSeedCookies;
+    }
+
+    // Fetch __zse_ck from Zhihu's static v3.js (hardcoded fallback value)
+    function fetchZseCkFromJs() {
+      return new Promise((resolve) => {
+        https.get('https://static.zhihu.com/zse-ck/v3.js', (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => {
+            const m = data.match(/__g\.ck\|\|"([\w+/=\\]*?)",_=/);
+            resolve(m ? m[1] : null);
+          });
+        }).on('error', () => resolve(null));
+      });
     }
 
     (async () => {
@@ -52,7 +66,6 @@ let
           locale: 'zh-CN',
         });
 
-        // Seed cookies into browser context
         const cookiePairs = seedCookies.split(';').map(s => s.trim()).filter(Boolean);
         const cookieObjects = cookiePairs.map(pair => {
           const idx = pair.indexOf('=');
@@ -76,32 +89,34 @@ let
           process.exit(2);
         }
 
-        // Debug: check document.cookie and console errors
-        const docCookies = await page.evaluate(() => document.cookie);
-        console.log('document.cookie keys:', docCookies.split(';').map(s => s.trim().split('=')[0]).join(', '));
-        const hasZseCkInDoc = docCookies.includes('__zse_ck');
-        console.log('__zse_ck in document.cookie:', hasZseCkInDoc);
-
-        // Wait for __zse_ck cookie
+        // Try to get __zse_ck from browser JS (wait up to 10s)
         let zseCk = null;
-        for (let i = 0; i < 15; i++) {
-          // Check both context cookies and document.cookie
-          const cookies = await context.cookies('https://www.zhihu.com');
-          const ck = cookies.find(c => c.name === '__zse_ck');
-          if (ck && ck.value) { zseCk = ck.value; break; }
-          const docCk = await page.evaluate(() => {
-            const m = document.cookie.match(/__zse_ck=([^;]+)/);
-            return m ? m[1] : null;
-          });
-          if (docCk) { zseCk = docCk; break; }
-          if (i === 0) console.log('Context cookies:', cookies.map(c => c.name).join(', '));
-          await page.waitForTimeout(2000);
-        }
-        if (!zseCk) { console.error('Failed to get __zse_ck'); process.exit(1); }
-        console.log('Got __zse_ck:', zseCk.substring(0, 10) + '...');
+        try {
+          await page.waitForFunction(
+            "document.cookie.includes('__zse_ck')",
+            { timeout: 10000 }
+          );
+          const m = await page.evaluate(() =>
+            document.cookie.match(/__zse_ck=([^;]+)/)?.[1]
+          );
+          if (m) zseCk = m;
+        } catch {}
 
-        // Merge: start with seed cookies, then overlay browser cookies
-        // This preserves any seed cookie fields the browser didn't generate
+        if (zseCk) {
+          console.log('Got __zse_ck from browser:', zseCk.substring(0, 20) + '...');
+        } else {
+          // Fallback: fetch from static v3.js
+          console.log('Browser did not generate __zse_ck, fetching from v3.js...');
+          zseCk = await fetchZseCkFromJs();
+          if (zseCk) {
+            console.log('Got __zse_ck from v3.js:', zseCk.substring(0, 20) + '...');
+          } else {
+            console.error('Failed to get __zse_ck from both browser and v3.js');
+            process.exit(1);
+          }
+        }
+
+        // Merge: seed cookies + browser cookies + __zse_ck
         const seedMap = new Map();
         cookiePairs.forEach(pair => {
           const idx = pair.indexOf('=');
@@ -110,6 +125,7 @@ let
 
         const browserCookies = await context.cookies('https://www.zhihu.com');
         browserCookies.forEach(c => seedMap.set(c.name, c.value));
+        seedMap.set('__zse_ck', zseCk);
 
         if (!seedMap.has('z_c0')) {
           console.error('Merged cookies lost z_c0. Not overwriting env file.');
@@ -119,7 +135,6 @@ let
         const cookieStr = Array.from(seedMap.entries()).map(([k, v]) => k + '=' + v).join('; ');
         console.log('Merged', seedMap.size, 'cookies (seed:', cookiePairs.length, '+ browser:', browserCookies.length, ')');
 
-        // Write env file in shell-sourceable format
         writeFileSync(envFile,
           "ZHIHU_COOKIES='" + cookieStr.replace(/'/g, "'\\'''") + "'\n",
           { mode: 0o600 });
