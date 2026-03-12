@@ -41,7 +41,9 @@ let
         executablePath: process.env.CHROMIUM_EXEC_PATH,
         args: ['--no-sandbox', '--disable-setuid-sandbox',
                '--disable-blink-features=AutomationControlled',
-               '--disable-dev-shm-usage'],
+               '--disable-dev-shm-usage',
+               '--proxy-server=direct://',
+               '--disable-features=IsolateOrigins,site-per-process'],
       });
 
       try {
@@ -64,6 +66,11 @@ let
         });
         await context.addCookies(cookieObjects);
 
+        // Hide webdriver flag before any page loads
+        await context.addInitScript(() => {
+          Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        });
+
         const page = await context.newPage();
         await page.goto('https://www.zhihu.com/explore', {
           waitUntil: 'domcontentloaded', timeout: 30000,
@@ -85,6 +92,7 @@ let
         let zseCk = null;
         for (let i = 0; i < 20; i++) {
           const cookies = await context.cookies('https://www.zhihu.com');
+          if (i === 0) console.log('Browser cookies:', cookies.map(c => c.name).join(', '));
           const ck = cookies.find(c => c.name === '__zse_ck');
           if (ck && ck.value) { zseCk = ck.value; break; }
           await page.evaluate(() => window.scrollBy(0, 100));
