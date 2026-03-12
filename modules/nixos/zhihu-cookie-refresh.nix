@@ -133,7 +133,9 @@ let
     }
 
     function getSignedHeaders(apiPath, cookieStr) {
-      const dc0 = getCookieValue(cookieStr, 'd_c0');
+      let dc0 = getCookieValue(cookieStr, 'd_c0');
+      // d_c0 must include surrounding quotes for signing (Zhihu Set-Cookie sends quoted value)
+      if (dc0 && !dc0.startsWith('"')) dc0 = '"' + dc0 + '"';
       const xzse93 = '101_3_3.0';
       const signStr = xzse93 + '+' + apiPath + '+' + dc0;
       const hash = md5(signStr);
