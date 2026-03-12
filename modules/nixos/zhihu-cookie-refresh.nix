@@ -297,93 +297,44 @@ let
       };
     }
 
-    // ========== Activities scraper (follows RSSHub activities.ts) ==========
+    // ========== Answers scraper (follows RSSHub answers.ts) ==========
 
-    async function scrapeActivities(page, userId, cookieStr) {
-      console.log('Scraping activities: /people/' + userId);
+    async function scrapeAnswers(page, userId, cookieStr) {
+      console.log('Scraping answers: /people/' + userId);
 
       const profile = await getUserProfile(page, 'people', userId);
       const userName = (profile && profile.name) || userId;
 
-      const apiPath = '/api/v3/moments/' + userId + '/activities?limit=7&desktop=true&ws_qiangzhisafe=0';
+      const apiPath = '/api/v4/members/' + userId + '/answers?limit=7&include=data[*].is_normal,content';
       const headers = getSignedHeaders(apiPath, cookieStr);
-      headers['Referer'] = 'https://www.zhihu.com/people/' + userId;
+      headers['Referer'] = 'https://www.zhihu.com/people/' + userId + '/answers';
 
-      console.log('Fetching activities API...');
+      console.log('Fetching answers API...');
       const resp = await browserFetch(page, 'https://www.zhihu.com' + apiPath, headers);
 
       if (resp && resp._error) {
-        console.error('Activities API error:', resp._error);
+        console.error('Answers API error:', resp._error);
         return null;
       }
       if (!resp || !Array.isArray(resp.data)) {
-        console.error('Unexpected activities response');
+        console.error('Unexpected answers response');
         return null;
       }
 
-      const actorName = (resp.data[0] && resp.data[0].actor && resp.data[0].actor.name) || userName;
+      const items = resp.data.map(a => ({
+        title: (a.question && a.question.title) || "",
+        link: 'https://www.zhihu.com/question/' + (a.question && a.question.id) + '/answer/' + a.id,
+        description: a.content || "",
+        pubDate: a.created_time ? new Date(a.created_time * 1000).toUTCString() : "",
+        author: (a.author && a.author.name) || userName,
+        guid: 'zhihu-answer-' + a.id,
+      })).filter(i => i.title);
 
-      const items = resp.data.map(item => {
-        const d = item.target || {};
-        let title = "", description = "", url = "", author = "";
-        switch (d.type) {
-          case 'answer':
-            title = (d.question && d.question.title) || "";
-            author = (d.author && d.author.name) || "";
-            description = d.content || "";
-            url = 'https://www.zhihu.com/question/' + (d.question && d.question.id) + '/answer/' + d.id;
-            break;
-          case 'article':
-            title = d.title || "";
-            author = (d.author && d.author.name) || "";
-            description = d.content || "";
-            url = 'https://zhuanlan.zhihu.com/p/' + d.id;
-            break;
-          case 'pin': {
-            title = d.excerpt_title || "";
-            author = (d.author && d.author.name) || "";
-            let pinHtml = "";
-            if (Array.isArray(d.content)) {
-              for (const c of d.content) {
-                if (c.type === 'text') pinHtml += '<p>' + (c.own_text || "") + '</p>';
-                else if (c.type === 'image') pinHtml += '<p><img src="' + (c.url || "").replace('xl', 'r') + '"/></p>';
-                else if (c.type === 'link') pinHtml += '<p><a href="' + (c.url || "") + '">' + (c.title || c.url || "") + '</a></p>';
-                else if (c.type === 'video' && c.playlist && c.playlist[1]) pinHtml += '<p><video controls src="' + c.playlist[1].url + '"></video></p>';
-              }
-            }
-            description = pinHtml;
-            url = 'https://www.zhihu.com/pin/' + d.id;
-            break;
-          }
-          case 'question':
-            title = d.title || "";
-            author = (d.author && d.author.name) || "";
-            description = d.detail || "";
-            url = 'https://www.zhihu.com/question/' + d.id;
-            break;
-          case 'column':
-            title = d.title || "";
-            description = '<p>' + (d.intro || "") + '</p>';
-            url = 'https://zhuanlan.zhihu.com/' + d.id;
-            break;
-          default:
-            title = d.title || d.name || "(unknown " + d.type + ")";
-            url = 'https://www.zhihu.com';
-        }
-        return {
-          title: actorName + (item.action_text || "") + ': ' + title,
-          link: url,
-          description,
-          pubDate: item.created_time ? new Date(item.created_time * 1000).toUTCString() : "",
-          author,
-          guid: 'zhihu-activity-' + d.type + '-' + d.id,
-        };
-      }).filter(i => i.title);
-
-      console.log('Got ' + items.length + ' activities for ' + actorName);
+      const authorName = (resp.data[0] && resp.data[0].author && resp.data[0].author.name) || userName;
+      console.log('Got ' + items.length + ' answers for ' + authorName);
       return {
-        title: actorName + '的知乎动态',
-        link: 'https://www.zhihu.com/people/' + userId + '/activities',
+        title: authorName + '的知乎回答',
+        link: 'https://www.zhihu.com/people/' + userId + '/answers',
         description: (profile && profile.headline) || "",
         items,
       };
@@ -484,8 +435,8 @@ let
               let result = null;
               if (feed.type === 'posts') {
                 result = await scrapePosts(page, feed.usertype || 'people', feed.id, cookieStr);
-              } else if (feed.type === 'activities') {
-                result = await scrapeActivities(page, feed.id, cookieStr);
+              } else if (feed.type === 'answers') {
+                result = await scrapeAnswers(page, feed.id, cookieStr);
               } else {
                 console.error('Unknown feed type: ' + feed.type);
                 continue;
@@ -566,8 +517,8 @@ in
       type = lib.types.listOf (lib.types.submodule {
         options = {
           type = lib.mkOption {
-            type = lib.types.enum [ "posts" "activities" ];
-            description = "posts (用户文章) or activities (用户动态).";
+            type = lib.types.enum [ "posts" "answers" ];
+            description = "posts (用户文章) or answers (用户回答).";
           };
           id = lib.mkOption {
             type = lib.types.str;
