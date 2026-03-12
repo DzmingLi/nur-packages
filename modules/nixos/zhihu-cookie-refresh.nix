@@ -13,11 +13,14 @@ let
     const { spawn } = require('child_process');
     const { createInterface } = require('readline');
     const { dirname, join } = require('path');
+    const crypto = require('crypto');
 
     const fallbackSeedCookies = ${builtins.toJSON cfg.seedCookies};
     const envFile = process.env.ENV_FILE;
     const feedsConfig = ${builtins.toJSON cfg.feeds};
     const outputDir = process.env.OUTPUT_DIR || "";
+
+    // ========== Cookie helpers ==========
 
     function getSeedCookies() {
       try {
@@ -32,24 +35,122 @@ let
       return fallbackSeedCookies;
     }
 
+    function getCookieValue(cookieStr, key) {
+      const pairs = cookieStr.split(';').map(s => s.trim());
+      const found = pairs.find(p => p.startsWith(key + '='));
+      return found ? found.slice(key.length + 1) : "";
+    }
+
+    // ========== x-zse-96 signing (ported from RSSHub) ==========
+
+    function md5(str) {
+      return crypto.createHash('md5').update(str).digest('hex');
+    }
+
+    function _i(e, t, n) {
+      t[n] = 255 & (e >>> 24);
+      t[n + 1] = 255 & (e >>> 16);
+      t[n + 2] = 255 & (e >>> 8);
+      t[n + 3] = 255 & e;
+    }
+    function _B(e, t) {
+      return ((255 & e[t]) << 24) | ((255 & e[t + 1]) << 16) | ((255 & e[t + 2]) << 8) | (255 & e[t + 3]);
+    }
+    function _Q(e, t) {
+      return ((4294967295 & e) << t) | (e >>> (32 - t));
+    }
+    const _h = {
+      zk: [1170614578,1024848638,1413669199,-343334464,-766094290,-1373058082,-143119608,-297228157,1933479194,-971186181,-406453910,460404854,-547427574,-1891326262,-1679095901,2119585428,-2029270069,2035090028,-1521520070,-5587175,-77751101,-2094365853,-1243052806,1579901135,1321810770,456816404,-1391643889,-229302305,330002838,-788960546,363569021,-1947871109],
+      zb: [20,223,245,7,248,2,194,209,87,6,227,253,240,128,222,91,237,9,125,157,230,93,252,205,90,79,144,199,159,197,186,167,39,37,156,198,38,42,43,168,217,153,15,103,80,189,71,191,97,84,247,95,36,69,14,35,12,171,28,114,178,148,86,182,32,83,158,109,22,255,94,238,151,85,77,124,254,18,4,26,123,176,232,193,131,172,143,142,150,30,10,146,162,62,224,218,196,229,1,192,213,27,110,56,231,180,138,107,242,187,54,120,19,44,117,228,215,203,53,239,251,127,81,11,133,96,204,132,41,115,73,55,249,147,102,48,122,145,106,118,74,190,29,16,174,5,177,129,63,113,99,31,161,76,246,34,211,13,60,68,207,160,65,111,82,165,67,169,225,57,112,244,155,51,236,200,233,58,61,47,100,137,185,64,17,70,234,163,219,108,170,166,59,149,52,105,24,212,78,173,45,0,116,226,119,136,206,135,175,195,25,92,121,208,126,139,3,75,141,21,130,98,241,40,154,66,184,49,181,46,243,88,101,183,8,23,72,188,104,179,210,134,250,201,164,89,216,202,220,50,221,152,140,33,235,214],
+    };
+    function _G(e) {
+      const t = Array.from({ length: 4 });
+      const n = Array.from({ length: 4 });
+      _i(e, t, 0);
+      n[0] = _h.zb[255 & t[0]];
+      n[1] = _h.zb[255 & t[1]];
+      n[2] = _h.zb[255 & t[2]];
+      n[3] = _h.zb[255 & t[3]];
+      const r = _B(n, 0);
+      return r ^ _Q(r, 2) ^ _Q(r, 10) ^ _Q(r, 18) ^ _Q(r, 24);
+    }
+    const __g = {
+      x(e, t) {
+        let n = [];
+        for (let r = e.length, ii = 0; 0 < r; r -= 16) {
+          const a = Array.from({ length: 16 });
+          const o = e.slice(16 * ii, 16 * (ii + 1));
+          for (let c = 0; c < 16; c++) a[c] = o[c] ^ t[c];
+          t = __g.r(a);
+          n = n.concat(t);
+          ii++;
+        }
+        return n;
+      },
+      r(e) {
+        const t = Array.from({ length: 16 });
+        const n = Array.from({ length: 36 });
+        n[0] = _B(e, 0); n[1] = _B(e, 4); n[2] = _B(e, 8); n[3] = _B(e, 12);
+        for (let r = 0; r < 32; r++) {
+          const o = _G(n[r + 1] ^ n[r + 2] ^ n[r + 3] ^ _h.zk[r]);
+          n[r + 4] = n[r] ^ o;
+        }
+        _i(n[35], t, 0); _i(n[34], t, 4); _i(n[33], t, 8); _i(n[32], t, 12);
+        return t;
+      },
+    };
+    function g_encrypt(md5Str) {
+      const salt = '6fpLRqJO8M/c3jnYxFkUVC4ZIG12SiH=5v0mXDazWBTsuw7QetbKdoPyAl+hN9rgE';
+      function encode(param) {
+        let result = "";
+        for (const x of [0, 6, 12, 18]) result += salt.charAt((param >>> x) & 63);
+        return result;
+      }
+      const arr = [];
+      for (let ii = 0; ii < md5Str.length; ii++) arr.push(md5Str.charCodeAt(ii));
+      arr.unshift(0);
+      arr.unshift(Math.floor(Math.random() * 127));
+      for (let ii = 0; ii < 15; ii++) arr.push(14);
+      const front = arr.slice(0, 16);
+      const fixArr = [48,53,57,48,53,51,102,55,100,49,53,101,48,49,100,55];
+      const xored = [];
+      for (let ii = 0; ii < front.length; ii++) xored.push(front[ii] ^ fixArr[ii] ^ 42);
+      const gr = __g.r(xored);
+      const back = arr.slice(16, 48);
+      const gx = __g.x(back, gr);
+      const processed = gr.concat(gx);
+      let current = 0;
+      let resultStr = "";
+      for (let ii = 0; ii < processed.length; ii++) {
+        const pop = processed[processed.length - ii - 1];
+        const a = 8 * (ii % 4);
+        const b = 58 >>> a;
+        const c = b & 255;
+        current |= (pop ^ c) << (8 * (ii % 3));
+        if (ii % 3 === 2) { resultStr += encode(current); current = 0; }
+      }
+      return resultStr;
+    }
+
+    function getSignedHeaders(apiPath, cookieStr) {
+      const dc0 = getCookieValue(cookieStr, 'd_c0');
+      const xzse93 = '101_3_3.0';
+      const xzse96 = '2.0_' + g_encrypt(md5(xzse93 + '+' + apiPath + '+' + dc0));
+      return { 'x-zse-96': xzse96, 'x-zse-93': xzse93, 'x-app-za': 'OS=Web', 'x-api-version': '3.0.91' };
+    }
+
+    // ========== Chromium launcher ==========
+
     function launchChromium() {
       return new Promise((resolve, reject) => {
         const proc = spawn(process.env.CHROMIUM_EXEC_PATH, [
-          '--remote-debugging-port=0',
-          '--no-first-run',
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--proxy-server=direct://',
-          '--window-size=1920,1080',
-          '--lang=zh-CN',
+          '--remote-debugging-port=0', '--no-first-run', '--no-sandbox',
+          '--disable-setuid-sandbox', '--disable-dev-shm-usage',
+          '--proxy-server=direct://', '--window-size=1920,1080', '--lang=zh-CN',
           '--disable-blink-features=AutomationControlled',
-          '--use-gl=angle',
-          '--use-angle=swiftshader',
-          '--enable-unsafe-swiftshader',
+          '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
           'about:blank',
         ], { stdio: ['pipe', 'pipe', 'pipe'] });
-
         const rl = createInterface({ input: proc.stderr });
         const timer = setTimeout(() => reject(new Error('Chromium launch timeout')), 15000);
         rl.on('line', line => {
@@ -60,7 +161,7 @@ let
       });
     }
 
-    // --- RSS XML helpers ---
+    // ========== RSS XML ==========
 
     function escapeXml(s) {
       return String(s == null ? "" : s)
@@ -69,8 +170,7 @@ let
     }
 
     function toRssXml(feed) {
-      let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
-      xml += '<rss version="2.0">\n<channel>\n';
+      let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n<channel>\n';
       xml += '<title>' + escapeXml(feed.title) + '</title>\n';
       xml += '<link>' + escapeXml(feed.link) + '</link>\n';
       xml += '<description>' + escapeXml(feed.description) + '</description>\n';
@@ -80,10 +180,7 @@ let
         xml += '<title>' + escapeXml(item.title) + '</title>\n';
         xml += '<link>' + escapeXml(item.link) + '</link>\n';
         if (item.guid) xml += '<guid isPermaLink="false">' + escapeXml(item.guid) + '</guid>\n';
-        if (item.description) {
-          const safe = item.description.replace(/]]>/g, ']]&gt;');
-          xml += '<description><![CDATA[' + safe + ']]></description>\n';
-        }
+        if (item.description) xml += '<description><![CDATA[' + item.description.replace(/]]>/g, ']]&gt;') + ']]></description>\n';
         if (item.pubDate) xml += '<pubDate>' + item.pubDate + '</pubDate>\n';
         if (item.author) xml += '<author>' + escapeXml(item.author) + '</author>\n';
         xml += '</item>\n';
@@ -92,7 +189,7 @@ let
       return xml;
     }
 
-    // --- Page data extraction ---
+    // ========== Scraping helpers ==========
 
     async function extractInitialData(page) {
       return page.evaluate(() => {
@@ -102,97 +199,197 @@ let
       });
     }
 
-    async function scrapeHot(page) {
-      console.log('Scraping /hot ...');
-      await page.goto('https://www.zhihu.com/hot', {
-        waitUntil: 'domcontentloaded', timeout: 30000,
-      });
-      if (page.url().includes('unhuman') || page.url().includes('signin')) {
-        console.error('Redirected on /hot:', page.url());
-        return null;
-      }
-
-      const data = await extractInitialData(page);
-      if (!data) { console.error('No initialData on /hot'); return null; }
-
-      const hotList = data.initialState && data.initialState.topstory
-        && data.initialState.topstory.hotList;
-      if (!hotList || !Array.isArray(hotList)) {
-        console.error('No hotList in initialData');
-        return null;
-      }
-
-      const items = hotList.map(item => {
-        const t = item.target || {};
-        const title = (t.titleArea && t.titleArea.text) || t.title || "";
-        const excerpt = (t.excerptArea && t.excerptArea.text) || t.excerpt || "";
-        // Extract question URL: link.url may be relative like "/question/12345"
-        let link = (t.link && t.link.url) || "";
-        if (link && !link.startsWith('http')) link = 'https://www.zhihu.com' + link;
-        if (!link && t.id) link = 'https://www.zhihu.com/question/' + t.id;
-        const metrics = (t.metricsArea && t.metricsArea.text) || "";
-        const desc = excerpt + (metrics ? " (" + metrics + ")" : "");
-        return { title, link, description: desc, guid: 'zhihu-hot-' + (t.id || "") };
-      }).filter(i => i.title);
-
-      console.log('Got ' + items.length + ' hot items');
-      return {
-        title: '知乎热榜',
-        link: 'https://www.zhihu.com/hot',
-        description: '知乎热榜',
-        items,
-      };
+    // Fetch API from browser context (uses browser TLS fingerprint)
+    async function browserFetch(page, url, headers) {
+      return page.evaluate(async ({ url, headers }) => {
+        try {
+          const res = await fetch(url, { headers, credentials: 'include' });
+          if (!res.ok) return { _error: res.status };
+          return res.json();
+        } catch (e) {
+          return { _error: e.message };
+        }
+      }, { url, headers });
     }
 
-    async function scrapePosts(page, usertype, userId) {
+    // Get user profile from SSR
+    async function getUserProfile(page, usertype, userId) {
       const prefix = usertype === 'org' ? 'org' : 'people';
-      console.log('Scraping /' + prefix + '/' + userId + '/posts ...');
-      await page.goto('https://www.zhihu.com/' + prefix + '/' + userId + '/posts', {
+      await page.goto('https://www.zhihu.com/' + prefix + '/' + userId, {
         waitUntil: 'domcontentloaded', timeout: 30000,
       });
-
       if (page.url().includes('unhuman') || page.url().includes('signin')) {
-        console.error('Redirected on /' + prefix + '/' + userId + ':', page.url());
+        console.error('Redirected:', page.url());
         return null;
       }
-
       const data = await extractInitialData(page);
-      if (!data) { console.error('No initialData on /' + prefix + '/' + userId); return null; }
+      if (!data) return null;
+      const users = data.initialState && data.initialState.entities && data.initialState.entities.users;
+      return (users && users[userId]) || null;
+    }
 
-      const entities = data.initialState && data.initialState.entities;
-      const articles = entities && entities.articles;
-      if (!articles || typeof articles !== 'object') {
-        console.error('No articles for ' + userId);
+    // ========== Posts scraper (follows RSSHub posts.ts) ==========
+
+    async function scrapePosts(page, usertype, userId, cookieStr) {
+      const prefix = usertype === 'org' ? 'org' : 'people';
+      const apiPrefix = usertype === 'org' ? 'org' : 'members';
+      console.log('Scraping posts: /' + prefix + '/' + userId);
+
+      const profile = await getUserProfile(page, usertype, userId);
+      const userName = (profile && profile.name) || userId;
+
+      const apiPath = '/api/v4/' + apiPrefix + '/' + userId + '/articles?'
+        + 'include=data[*].comment_count,content,voteup_count,created,updated;data[*].author.badge[?(type=best_answerer)].topics&offset=0&limit=20&sort_by=created';
+      const headers = getSignedHeaders(apiPath, cookieStr);
+      headers['Referer'] = 'https://www.zhihu.com/' + prefix + '/' + userId + '/posts';
+
+      console.log('Fetching articles API...');
+      const resp = await browserFetch(page, 'https://www.zhihu.com' + apiPath, headers);
+
+      if (resp && resp._error) {
+        console.error('Articles API error:', resp._error);
+        // Fallback: try SSR from /posts page
+        console.log('Trying SSR fallback...');
+        await page.goto('https://www.zhihu.com/' + prefix + '/' + userId + '/posts', {
+          waitUntil: 'domcontentloaded', timeout: 30000,
+        });
+        const data = await extractInitialData(page);
+        const articles = data && data.initialState && data.initialState.entities && data.initialState.entities.articles;
+        if (articles && typeof articles === 'object') {
+          const items = Object.values(articles)
+            .filter(a => a && a.title)
+            .sort((a, b) => (b.created || 0) - (a.created || 0))
+            .map(a => ({
+              title: a.title,
+              link: 'https://zhuanlan.zhihu.com/p/' + a.id,
+              description: a.content || a.excerpt || "",
+              pubDate: a.created ? new Date(a.created * 1000).toUTCString() : "",
+              author: (a.author && a.author.name) || userName,
+              guid: 'zhihu-article-' + a.id,
+            }));
+          console.log('SSR fallback: got ' + items.length + ' articles');
+          return { title: userName + ' 的知乎文章', link: 'https://www.zhihu.com/' + prefix + '/' + userId + '/posts', description: (profile && profile.headline) || "", items };
+        }
         return null;
       }
 
-      // Get user display name from entities.users
-      const users = (entities && entities.users) || {};
-      const userInfo = users[userId] || {};
-      const userName = userInfo.name || userId;
+      if (!resp || !Array.isArray(resp.data)) {
+        console.error('Unexpected articles response');
+        return null;
+      }
 
-      const items = Object.values(articles)
-        .filter(a => a && a.title)
-        .sort((a, b) => (b.created || 0) - (a.created || 0))
-        .map(a => ({
-          title: a.title,
-          link: 'https://zhuanlan.zhihu.com/p/' + a.id,
-          description: a.content || a.excerpt || "",
-          pubDate: a.created ? new Date(a.created * 1000).toUTCString() : "",
-          author: (a.author && a.author.name) || userName,
-          guid: 'zhihu-article-' + a.id,
-        }));
+      const items = resp.data.map(a => ({
+        title: a.title,
+        link: 'https://zhuanlan.zhihu.com/p/' + a.id,
+        description: a.content || "",
+        pubDate: a.created ? new Date(a.created * 1000).toUTCString() : "",
+        updated: a.updated ? new Date(a.updated * 1000).toUTCString() : "",
+        author: (a.author && a.author.name) || userName,
+        guid: 'zhihu-article-' + a.id,
+      }));
 
       console.log('Got ' + items.length + ' articles for ' + userName);
       return {
         title: userName + ' 的知乎文章',
         link: 'https://www.zhihu.com/' + prefix + '/' + userId + '/posts',
-        description: userName + ' 在知乎发表的文章',
+        description: (profile && profile.headline) || "",
         items,
       };
     }
 
-    // --- Main ---
+    // ========== Activities scraper (follows RSSHub activities.ts) ==========
+
+    async function scrapeActivities(page, userId, cookieStr) {
+      console.log('Scraping activities: /people/' + userId);
+
+      const profile = await getUserProfile(page, 'people', userId);
+      const userName = (profile && profile.name) || userId;
+
+      const apiPath = '/api/v3/moments/' + userId + '/activities?limit=7&desktop=true&ws_qiangzhisafe=0';
+      const headers = getSignedHeaders(apiPath, cookieStr);
+      headers['Referer'] = 'https://www.zhihu.com/people/' + userId;
+
+      console.log('Fetching activities API...');
+      const resp = await browserFetch(page, 'https://www.zhihu.com' + apiPath, headers);
+
+      if (resp && resp._error) {
+        console.error('Activities API error:', resp._error);
+        return null;
+      }
+      if (!resp || !Array.isArray(resp.data)) {
+        console.error('Unexpected activities response');
+        return null;
+      }
+
+      const actorName = (resp.data[0] && resp.data[0].actor && resp.data[0].actor.name) || userName;
+
+      const items = resp.data.map(item => {
+        const d = item.target || {};
+        let title = "", description = "", url = "", author = "";
+        switch (d.type) {
+          case 'answer':
+            title = (d.question && d.question.title) || "";
+            author = (d.author && d.author.name) || "";
+            description = d.content || "";
+            url = 'https://www.zhihu.com/question/' + (d.question && d.question.id) + '/answer/' + d.id;
+            break;
+          case 'article':
+            title = d.title || "";
+            author = (d.author && d.author.name) || "";
+            description = d.content || "";
+            url = 'https://zhuanlan.zhihu.com/p/' + d.id;
+            break;
+          case 'pin': {
+            title = d.excerpt_title || "";
+            author = (d.author && d.author.name) || "";
+            let pinHtml = "";
+            if (Array.isArray(d.content)) {
+              for (const c of d.content) {
+                if (c.type === 'text') pinHtml += '<p>' + (c.own_text || "") + '</p>';
+                else if (c.type === 'image') pinHtml += '<p><img src="' + (c.url || "").replace('xl', 'r') + '"/></p>';
+                else if (c.type === 'link') pinHtml += '<p><a href="' + (c.url || "") + '">' + (c.title || c.url || "") + '</a></p>';
+                else if (c.type === 'video' && c.playlist && c.playlist[1]) pinHtml += '<p><video controls src="' + c.playlist[1].url + '"></video></p>';
+              }
+            }
+            description = pinHtml;
+            url = 'https://www.zhihu.com/pin/' + d.id;
+            break;
+          }
+          case 'question':
+            title = d.title || "";
+            author = (d.author && d.author.name) || "";
+            description = d.detail || "";
+            url = 'https://www.zhihu.com/question/' + d.id;
+            break;
+          case 'column':
+            title = d.title || "";
+            description = '<p>' + (d.intro || "") + '</p>';
+            url = 'https://zhuanlan.zhihu.com/' + d.id;
+            break;
+          default:
+            title = d.title || d.name || "(unknown " + d.type + ")";
+            url = 'https://www.zhihu.com';
+        }
+        return {
+          title: actorName + (item.action_text || "") + ': ' + title,
+          link: url,
+          description,
+          pubDate: item.created_time ? new Date(item.created_time * 1000).toUTCString() : "",
+          author,
+          guid: 'zhihu-activity-' + d.type + '-' + d.id,
+        };
+      }).filter(i => i.title);
+
+      console.log('Got ' + items.length + ' activities for ' + actorName);
+      return {
+        title: actorName + '的知乎动态',
+        link: 'https://www.zhihu.com/people/' + userId + '/activities',
+        description: (profile && profile.headline) || "",
+        items,
+      };
+    }
+
+    // ========== Main ==========
 
     (async () => {
       const seedCookies = getSeedCookies();
@@ -202,110 +399,73 @@ let
         process.exit(0);
       }
 
-      console.log('Launching Chromium directly...');
+      console.log('Launching Chromium...');
       const { proc, wsEndpoint } = await launchChromium();
-      console.log('Connected to Chromium via CDP');
+      console.log('Connected via CDP');
 
       let browser;
       try {
         browser = await chromium.connectOverCDP(wsEndpoint);
         const context = browser.contexts()[0] || await browser.newContext();
 
-        // Inject seed cookies
         const cookiePairs = seedCookies.split(';').map(s => s.trim()).filter(Boolean);
         const cookieObjects = cookiePairs.map(pair => {
           const idx = pair.indexOf('=');
-          return {
-            name: pair.substring(0, idx),
-            value: pair.substring(idx + 1),
-            domain: '.zhihu.com',
-            path: '/',
-          };
+          return { name: pair.substring(0, idx), value: pair.substring(idx + 1), domain: '.zhihu.com', path: '/' };
         });
         await context.addCookies(cookieObjects);
 
         const page = context.pages()[0] || await context.newPage();
 
-        // Hide navigator.webdriver via CDP
         const cdp = await context.newCDPSession(page);
         await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
           source: 'Object.defineProperty(navigator, "webdriver", {get: () => false});',
         });
 
-        page.on('console', msg => {
-          if (msg.type() === 'error') console.log('PAGE ERROR:', msg.text());
-        });
-        page.on('pageerror', err => console.log('PAGE EXCEPTION:', err.message));
-
         // --- Cookie refresh ---
-        await page.goto('https://www.zhihu.com/explore', {
-          waitUntil: 'networkidle', timeout: 30000,
-        });
+        await page.goto('https://www.zhihu.com/explore', { waitUntil: 'networkidle', timeout: 30000 });
         console.log('Page URL:', page.url());
 
         if (page.url().includes('unhuman')) {
-          console.error('Anti-bot verification triggered');
+          console.error('Anti-bot triggered');
           process.exit(2);
         }
 
-        // Get __zse_ck: check page JS first
         let zseCk = null;
-        const initCk = await page.evaluate(() =>
-          document.cookie.match(/__zse_ck=([^;]+)/)?.[1]
-        );
-        if (initCk) {
-          zseCk = initCk;
-          console.log('Got __zse_ck from page JS');
-        }
+        const initCk = await page.evaluate(() => document.cookie.match(/__zse_ck=([^;]+)/)?.[1]);
+        if (initCk) { zseCk = initCk; console.log('Got __zse_ck from page JS'); }
 
-        // Inject v3.js if needed
         if (!zseCk) {
-          console.log('__zse_ck not found, injecting v3.js...');
+          console.log('Injecting v3.js...');
           await page.addScriptTag({ url: 'https://static.zhihu.com/zse-ck/v3.js' });
           try {
-            await page.waitForFunction(
-              "document.cookie.includes('__zse_ck')",
-              { timeout: 15000 }
-            );
-            zseCk = await page.evaluate(() =>
-              document.cookie.match(/__zse_ck=([^;]+)/)?.[1]
-            );
-            if (zseCk) console.log('Got __zse_ck after injecting v3.js');
+            await page.waitForFunction("document.cookie.includes('__zse_ck')", { timeout: 15000 });
+            zseCk = await page.evaluate(() => document.cookie.match(/__zse_ck=([^;]+)/)?.[1]);
+            if (zseCk) console.log('Got __zse_ck after v3.js');
           } catch {}
         }
 
-        // Last resort: __g.ck global
         if (!zseCk) {
           try {
-            zseCk = await page.evaluate(() =>
-              typeof __g !== 'undefined' && __g.ck ? __g.ck : null
-            );
+            zseCk = await page.evaluate(() => typeof __g !== 'undefined' && __g.ck ? __g.ck : null);
             if (zseCk) console.log('Got __zse_ck from __g.ck');
           } catch {}
         }
 
-        if (zseCk) {
-          console.log('__zse_ck:', zseCk.substring(0, 20) + '...');
-        } else {
-          console.error('Failed to get __zse_ck');
-          process.exit(1);
-        }
+        if (!zseCk) { console.error('Failed to get __zse_ck'); process.exit(1); }
+        console.log('__zse_ck:', zseCk.substring(0, 20) + '...');
 
-        // Merge cookies: seed + browser + __zse_ck
+        // Merge cookies
         const seedMap = new Map();
         cookiePairs.forEach(pair => {
           const idx = pair.indexOf('=');
           if (idx > 0) seedMap.set(pair.substring(0, idx), pair.substring(idx + 1));
         });
-
         const browserCookies = await context.cookies('https://www.zhihu.com');
         browserCookies.forEach(c => seedMap.set(c.name, c.value));
         seedMap.set('__zse_ck', zseCk);
 
-        if (!seedMap.has('z_c0')) {
-          console.error('Merged cookies lost z_c0. Not overwriting env file.');
-          process.exit(1);
-        }
+        if (!seedMap.has('z_c0')) { console.error('Lost z_c0'); process.exit(1); }
 
         const cookieStr = Array.from(seedMap.entries()).map(([k, v]) => k + '=' + v).join('; ');
         console.log('Merged', seedMap.size, 'cookies');
@@ -313,20 +473,19 @@ let
         writeFileSync(envFile,
           "ZHIHU_COOKIES='" + cookieStr.replace(/'/g, "'\\'''") + "'\n",
           { mode: 0o600 });
+        console.log('Wrote cookies to env file');
 
-        console.log('Wrote', seedMap.size, 'cookies to env file');
-
-        // --- Feed scraping (reuse same browser session) ---
+        // --- Feed scraping ---
         if (feedsConfig.length > 0 && outputDir) {
           console.log('Scraping ' + feedsConfig.length + ' feed(s)...');
           for (const feed of feedsConfig) {
             try {
               await new Promise(r => setTimeout(r, 2000));
               let result = null;
-              if (feed.type === 'hot') {
-                result = await scrapeHot(page);
-              } else if (feed.type === 'posts') {
-                result = await scrapePosts(page, feed.usertype || 'people', feed.id);
+              if (feed.type === 'posts') {
+                result = await scrapePosts(page, feed.usertype || 'people', feed.id, cookieStr);
+              } else if (feed.type === 'activities') {
+                result = await scrapeActivities(page, feed.id, cookieStr);
               } else {
                 console.error('Unknown feed type: ' + feed.type);
                 continue;
@@ -337,7 +496,7 @@ let
                 writeFileSync(outPath, toRssXml(result), { mode: 0o644 });
                 console.log('Wrote ' + result.items.length + ' items to ' + outPath);
               } else {
-                console.error('No data for feed ' + feed.type + '/' + (feed.id || ""));
+                console.error('No data for ' + feed.type + '/' + (feed.id || ""));
               }
             } catch (e) {
               console.error('Feed ' + feed.type + '/' + (feed.id || "") + ' failed:', e.message);
@@ -348,10 +507,7 @@ let
         if (browser) await browser.close().catch(() => {});
         proc.kill('SIGTERM');
       }
-    })().catch(e => {
-      console.error(e);
-      process.exit(1);
-    });
+    })().catch(e => { console.error(e); process.exit(1); });
   '';
 in
 {
@@ -364,84 +520,77 @@ in
       description = ''
         Fallback seed cookies (semicolon-separated) for the first run only.
         Must include at least `z_c0` for authenticated access.
-        After the first successful refresh, subsequent runs read cookies
-        from the env file automatically.
       '';
     };
 
     envFile = lib.mkOption {
       type = lib.types.str;
       default = "/var/lib/rsshub/zhihu-cookies.env";
-      description = "Path to write the ZHIHU_COOKIES env file (shell-sourceable).";
+      description = "Path to write the ZHIHU_COOKIES env file.";
     };
 
     user = lib.mkOption {
       type = lib.types.str;
       default = "rsshub";
-      description = "User to run the service as.";
     };
 
     group = lib.mkOption {
       type = lib.types.str;
       default = "rsshub";
-      description = "Group to run the service as.";
     };
 
     interval = lib.mkOption {
       type = lib.types.str;
       default = "4h";
-      description = "How often to refresh cookies and scrape feeds (systemd time span).";
+      description = "How often to refresh cookies and scrape feeds.";
     };
 
     onCalendar = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
-      description = "Optional OnCalendar schedule (overrides interval if set).";
+      description = "Optional OnCalendar schedule (overrides interval).";
     };
 
     initialDelay = lib.mkOption {
       type = lib.types.str;
       default = "2min";
-      description = "Delay after boot before first run.";
     };
 
     restartService = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = "rsshub.service";
-      description = "Service to restart after cookie refresh. Set to null to disable.";
+      description = "Service to restart after cookie refresh. null to disable.";
     };
 
     feeds = lib.mkOption {
       type = lib.types.listOf (lib.types.submodule {
         options = {
           type = lib.mkOption {
-            type = lib.types.enum [ "hot" "posts" ];
-            description = "Feed type: hot (trending) or posts (user articles).";
+            type = lib.types.enum [ "posts" "activities" ];
+            description = "posts (用户文章) or activities (用户动态).";
           };
           id = lib.mkOption {
             type = lib.types.str;
-            default = "";
-            description = "User ID (url_token) for posts feeds.";
+            description = "User url_token (from profile URL).";
           };
           usertype = lib.mkOption {
             type = lib.types.enum [ "people" "org" ];
             default = "people";
-            description = "User type: people or org.";
+            description = "people or org (for posts only).";
           };
           output = lib.mkOption {
             type = lib.types.str;
-            description = "Output path relative to outputDir (e.g. zhihu/hot).";
+            description = "Output path relative to outputDir.";
           };
         };
       });
       default = [];
-      description = "Zhihu feeds to scrape via headless Chromium after cookie refresh.";
+      description = "Zhihu feeds to scrape after cookie refresh.";
     };
 
     outputDir = lib.mkOption {
       type = lib.types.str;
       default = "/var/lib/zhihu-feeds";
-      description = "Directory to write scraped RSS XML files.";
     };
   };
 
