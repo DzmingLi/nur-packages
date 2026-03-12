@@ -135,7 +135,12 @@ let
     function getSignedHeaders(apiPath, cookieStr) {
       const dc0 = getCookieValue(cookieStr, 'd_c0');
       const xzse93 = '101_3_3.0';
-      const xzse96 = '2.0_' + g_encrypt(md5(xzse93 + '+' + apiPath + '+' + dc0));
+      const signStr = xzse93 + '+' + apiPath + '+' + dc0;
+      const hash = md5(signStr);
+      const xzse96 = '2.0_' + g_encrypt(hash);
+      console.log('sign d_c0:', dc0.substring(0, 20) + '...');
+      console.log('sign path:', apiPath.substring(0, 80) + '...');
+      console.log('sign md5:', hash);
       return { 'x-zse-96': xzse96, 'x-zse-93': xzse93, 'x-app-za': 'OS=Web', 'x-api-version': '3.0.91' };
     }
 
@@ -243,8 +248,13 @@ let
       const profile = await getUserProfile(page, usertype, userId);
       const userName = (profile && profile.name) || userId;
 
-      const apiPath = '/api/v4/' + apiPrefix + '/' + userId + '/articles?'
-        + 'include=data[*].comment_count,content,voteup_count,created,updated;data[*].author.badge[?(type=best_answerer)].topics&offset=0&limit=20&sort_by=created';
+      const articleParams = new URLSearchParams({
+        include: 'data[*].comment_count,suggest_edit,is_normal,thumbnail_extra_info,thumbnail,can_comment,comment_permission,admin_closed_comment,content,voteup_count,created,updated,upvoted_followees,voting,review_info,reaction_instruction,is_labeled,label_info;data[*].vessay_info;data[*].author.badge[?(type=best_answerer)].topics;data[*].author.vip_info;',
+        offset: '0',
+        limit: '20',
+        sort_by: 'created',
+      });
+      const apiPath = '/api/v4/' + apiPrefix + '/' + userId + '/articles?' + articleParams.toString();
       const headers = getSignedHeaders(apiPath, cookieStr);
       headers['Referer'] = 'https://www.zhihu.com/' + prefix + '/' + userId + '/posts';
 
@@ -315,7 +325,11 @@ let
       const profile = await getUserProfile(page, 'people', userId);
       const userName = (profile && profile.name) || userId;
 
-      const apiPath = '/api/v4/members/' + userId + '/answers?limit=7&include=data[*].is_normal,content';
+      const answerParams = new URLSearchParams({
+        include: 'data[*].is_normal,content',
+        limit: '7',
+      });
+      const apiPath = '/api/v4/members/' + userId + '/answers?' + answerParams.toString();
       const headers = getSignedHeaders(apiPath, cookieStr);
       headers['Referer'] = 'https://www.zhihu.com/people/' + userId + '/answers';
 
