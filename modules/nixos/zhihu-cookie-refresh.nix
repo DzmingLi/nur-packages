@@ -201,10 +201,15 @@ let
 
     // Fetch API from browser context (uses browser TLS fingerprint)
     async function browserFetch(page, url, headers) {
+      console.log('browserFetch:', url.substring(0, 120));
+      console.log('headers:', JSON.stringify(headers));
       return page.evaluate(async ({ url, headers }) => {
         try {
           const res = await fetch(url, { headers, credentials: 'include' });
-          if (!res.ok) return { _error: res.status };
+          if (!res.ok) {
+            const body = await res.text().catch(() => "");
+            return { _error: res.status, _body: body.substring(0, 300) };
+          }
           return res.json();
         } catch (e) {
           return { _error: e.message };
@@ -247,13 +252,18 @@ let
       const resp = await browserFetch(page, 'https://www.zhihu.com' + apiPath, headers);
 
       if (resp && resp._error) {
-        console.error('Articles API error:', resp._error);
+        console.error('Articles API error:', resp._error, resp._body || "");
         // Fallback: try SSR from /posts page
         console.log('Trying SSR fallback...');
         await page.goto('https://www.zhihu.com/' + prefix + '/' + userId + '/posts', {
           waitUntil: 'domcontentloaded', timeout: 30000,
         });
+        console.log('SSR page URL:', page.url());
         const data = await extractInitialData(page);
+        console.log('SSR has initialData:', !!data);
+        if (data && data.initialState && data.initialState.entities) {
+          console.log('SSR entity keys:', Object.keys(data.initialState.entities).join(','));
+        }
         const articles = data && data.initialState && data.initialState.entities && data.initialState.entities.articles;
         if (articles && typeof articles === 'object') {
           const items = Object.values(articles)
