@@ -206,164 +206,179 @@ let
       });
     }
 
-    // Fetch API from browser context (uses browser TLS fingerprint)
-    async function browserFetch(page, url, headers) {
-      console.log('browserFetch:', url.substring(0, 120));
-      console.log('headers:', JSON.stringify(headers));
-      return page.evaluate(async ({ url, headers }) => {
-        try {
-          const res = await fetch(url, { headers, credentials: 'include' });
-          if (!res.ok) {
-            const body = await res.text().catch(() => "");
-            return { _error: res.status, _body: body.substring(0, 300) };
-          }
-          return res.json();
-        } catch (e) {
-          return { _error: e.message };
-        }
-      }, { url, headers });
-    }
+    // Navigate to page, intercept Zhihu's own API responses, and extract data.
+    // This avoids manually signing API requests — the browser's own JS does it.
+    async function navigateAndIntercept(page, pageUrl, apiPattern) {
+      console.log('Navigating to', pageUrl);
+      let apiData = null;
 
-    // Get user profile from SSR
-    async function getUserProfile(page, usertype, userId) {
-      const prefix = usertype === 'org' ? 'org' : 'people';
-      await page.goto('https://www.zhihu.com/' + prefix + '/' + userId, {
-        waitUntil: 'domcontentloaded', timeout: 30000,
+      // Listen for matching API responses before navigating
+      const responsePromise = page.waitForResponse(
+        resp => resp.url().includes(apiPattern) && resp.status() === 200,
+        { timeout: 20000 }
+      ).then(async resp => {
+        console.log('Intercepted API:', resp.url().substring(0, 100));
+        apiData = await resp.json().catch(() => null);
+      }).catch(e => {
+        console.log('No API response intercepted:', e.message);
       });
-      if (page.url().includes('unhuman') || page.url().includes('signin')) {
-        console.error('Redirected:', page.url());
-        return null;
-      }
-      const data = await extractInitialData(page);
-      if (!data) return null;
-      const users = data.initialState && data.initialState.entities && data.initialState.entities.users;
-      return (users && users[userId]) || null;
+
+      await page.goto(pageUrl, { waitUntil: 'networkidle', timeout: 30000 });
+      console.log('Page loaded:', page.url());
+
+      // Wait for the response promise (may already be resolved)
+      await responsePromise;
+
+      if (apiData) return { source: 'api', data: apiData };
+
+      // Fallback: SSR data
+      const ssrData = await extractInitialData(page);
+      if (ssrData) return { source: 'ssr', data: ssrData };
+
+      // Fallback: try scrolling to trigger lazy-load API call
+      console.log('Scrolling to trigger API call...');
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      const retryPromise = page.waitForResponse(
+        resp => resp.url().includes(apiPattern) && resp.status() === 200,
+        { timeout: 10000 }
+      ).then(async resp => {
+        apiData = await resp.json().catch(() => null);
+      }).catch(() => {});
+      await retryPromise;
+
+      if (apiData) return { source: 'api-scroll', data: apiData };
+      return null;
     }
 
-    // ========== Posts scraper (follows RSSHub posts.ts) ==========
+    // ========== Posts scraper ==========
 
-    async function scrapePosts(page, usertype, userId, cookieStr) {
+    async function scrapePosts(page, usertype, userId) {
       const prefix = usertype === 'org' ? 'org' : 'people';
       const apiPrefix = usertype === 'org' ? 'org' : 'members';
       console.log('Scraping posts: /' + prefix + '/' + userId);
 
-      const profile = await getUserProfile(page, usertype, userId);
-      const userName = (profile && profile.name) || userId;
+      const pageUrl = 'https://www.zhihu.com/' + prefix + '/' + userId + '/posts';
+      const apiPattern = '/api/v4/' + apiPrefix + '/' + userId + '/articles';
 
-      const articleParams = new URLSearchParams({
-        include: 'data[*].comment_count,suggest_edit,is_normal,thumbnail_extra_info,thumbnail,can_comment,comment_permission,admin_closed_comment,content,voteup_count,created,updated,upvoted_followees,voting,review_info,reaction_instruction,is_labeled,label_info;data[*].vessay_info;data[*].author.badge[?(type=best_answerer)].topics;data[*].author.vip_info;',
-        offset: '0',
-        limit: '20',
-        sort_by: 'created',
-      });
-      const apiPath = '/api/v4/' + apiPrefix + '/' + userId + '/articles?' + articleParams.toString();
-      const headers = getSignedHeaders(apiPath, cookieStr);
-      headers['Referer'] = 'https://www.zhihu.com/' + prefix + '/' + userId + '/posts';
+      const result = await navigateAndIntercept(page, pageUrl, apiPattern);
 
-      console.log('Fetching articles API...');
-      const resp = await browserFetch(page, 'https://www.zhihu.com' + apiPath, headers);
+      if (!result) {
+        console.error('No data for posts/' + userId);
+        return null;
+      }
 
-      if (resp && resp._error) {
-        console.error('Articles API error:', resp._error, resp._body || "");
-        // Fallback: try SSR from /posts page
-        console.log('Trying SSR fallback...');
-        await page.goto('https://www.zhihu.com/' + prefix + '/' + userId + '/posts', {
-          waitUntil: 'domcontentloaded', timeout: 30000,
-        });
-        console.log('SSR page URL:', page.url());
-        const data = await extractInitialData(page);
-        console.log('SSR has initialData:', !!data);
-        if (data && data.initialState && data.initialState.entities) {
-          console.log('SSR entity keys:', Object.keys(data.initialState.entities).join(','));
-        }
-        const articles = data && data.initialState && data.initialState.entities && data.initialState.entities.articles;
+      let userName = userId;
+      let headline = '';
+      let items = [];
+
+      if (result.source === 'ssr') {
+        const entities = result.data.initialState && result.data.initialState.entities;
+        if (!entities) return null;
+        const users = entities.users;
+        if (users && users[userId]) { userName = users[userId].name || userId; headline = users[userId].headline || ''; }
+        const articles = entities.articles;
         if (articles && typeof articles === 'object') {
-          const items = Object.values(articles)
+          items = Object.values(articles)
             .filter(a => a && a.title)
             .sort((a, b) => (b.created || 0) - (a.created || 0))
             .map(a => ({
               title: a.title,
               link: 'https://zhuanlan.zhihu.com/p/' + a.id,
-              description: a.content || a.excerpt || "",
-              pubDate: a.created ? new Date(a.created * 1000).toUTCString() : "",
+              description: a.content || a.excerpt || '',
+              pubDate: a.created ? new Date(a.created * 1000).toUTCString() : '',
               author: (a.author && a.author.name) || userName,
               guid: 'zhihu-article-' + a.id,
             }));
-          console.log('SSR fallback: got ' + items.length + ' articles');
-          return { title: userName + ' 的知乎文章', link: 'https://www.zhihu.com/' + prefix + '/' + userId + '/posts', description: (profile && profile.headline) || "", items };
         }
-        return null;
+      } else {
+        // API response
+        const apiResp = result.data;
+        if (apiResp && Array.isArray(apiResp.data)) {
+          items = apiResp.data.map(a => ({
+            title: a.title,
+            link: 'https://zhuanlan.zhihu.com/p/' + a.id,
+            description: a.content || '',
+            pubDate: a.created ? new Date(a.created * 1000).toUTCString() : '',
+            author: (a.author && a.author.name) || userName,
+            guid: 'zhihu-article-' + a.id,
+          }));
+          if (apiResp.data[0] && apiResp.data[0].author) userName = apiResp.data[0].author.name || userId;
+        }
       }
 
-      if (!resp || !Array.isArray(resp.data)) {
-        console.error('Unexpected articles response');
-        return null;
-      }
-
-      const items = resp.data.map(a => ({
-        title: a.title,
-        link: 'https://zhuanlan.zhihu.com/p/' + a.id,
-        description: a.content || "",
-        pubDate: a.created ? new Date(a.created * 1000).toUTCString() : "",
-        updated: a.updated ? new Date(a.updated * 1000).toUTCString() : "",
-        author: (a.author && a.author.name) || userName,
-        guid: 'zhihu-article-' + a.id,
-      }));
-
-      console.log('Got ' + items.length + ' articles for ' + userName);
-      return {
+      console.log('Got ' + items.length + ' articles (' + result.source + ')');
+      return items.length > 0 ? {
         title: userName + ' 的知乎文章',
-        link: 'https://www.zhihu.com/' + prefix + '/' + userId + '/posts',
-        description: (profile && profile.headline) || "",
+        link: pageUrl,
+        description: headline,
         items,
-      };
+      } : null;
     }
 
-    // ========== Answers scraper (follows RSSHub answers.ts) ==========
+    // ========== Answers scraper ==========
 
-    async function scrapeAnswers(page, userId, cookieStr) {
+    async function scrapeAnswers(page, userId) {
       console.log('Scraping answers: /people/' + userId);
 
-      const profile = await getUserProfile(page, 'people', userId);
-      const userName = (profile && profile.name) || userId;
+      const pageUrl = 'https://www.zhihu.com/people/' + userId + '/answers';
+      const apiPattern = '/api/v4/members/' + userId + '/answers';
 
-      const answerParams = new URLSearchParams({
-        include: 'data[*].is_normal,content',
-        limit: '7',
-      });
-      const apiPath = '/api/v4/members/' + userId + '/answers?' + answerParams.toString();
-      const headers = getSignedHeaders(apiPath, cookieStr);
-      headers['Referer'] = 'https://www.zhihu.com/people/' + userId + '/answers';
+      const result = await navigateAndIntercept(page, pageUrl, apiPattern);
 
-      console.log('Fetching answers API...');
-      const resp = await browserFetch(page, 'https://www.zhihu.com' + apiPath, headers);
-
-      if (resp && resp._error) {
-        console.error('Answers API error:', resp._error);
-        return null;
-      }
-      if (!resp || !Array.isArray(resp.data)) {
-        console.error('Unexpected answers response');
+      if (!result) {
+        console.error('No data for answers/' + userId);
         return null;
       }
 
-      const items = resp.data.map(a => ({
-        title: (a.question && a.question.title) || "",
-        link: 'https://www.zhihu.com/question/' + (a.question && a.question.id) + '/answer/' + a.id,
-        description: a.content || "",
-        pubDate: a.created_time ? new Date(a.created_time * 1000).toUTCString() : "",
-        author: (a.author && a.author.name) || userName,
-        guid: 'zhihu-answer-' + a.id,
-      })).filter(i => i.title);
+      let userName = userId;
+      let headline = '';
+      let items = [];
 
-      const authorName = (resp.data[0] && resp.data[0].author && resp.data[0].author.name) || userName;
-      console.log('Got ' + items.length + ' answers for ' + authorName);
-      return {
-        title: authorName + '的知乎回答',
-        link: 'https://www.zhihu.com/people/' + userId + '/answers',
-        description: (profile && profile.headline) || "",
+      if (result.source === 'ssr') {
+        const entities = result.data.initialState && result.data.initialState.entities;
+        if (!entities) return null;
+        const users = entities.users;
+        if (users && users[userId]) { userName = users[userId].name || userId; headline = users[userId].headline || ''; }
+        const answers = entities.answers;
+        const questions = entities.questions || {};
+        if (answers && typeof answers === 'object') {
+          items = Object.values(answers)
+            .filter(a => a && a.id)
+            .sort((a, b) => (b.created_time || 0) - (a.created_time || 0))
+            .map(a => {
+              const q = (a.question && questions[a.question]) || a.question || {};
+              return {
+                title: q.title || '',
+                link: 'https://www.zhihu.com/question/' + (q.id || 0) + '/answer/' + a.id,
+                description: a.content || a.excerpt || '',
+                pubDate: a.created_time ? new Date(a.created_time * 1000).toUTCString() : '',
+                author: (a.author && a.author.name) || userName,
+                guid: 'zhihu-answer-' + a.id,
+              };
+            }).filter(i => i.title);
+        }
+      } else {
+        const apiResp = result.data;
+        if (apiResp && Array.isArray(apiResp.data)) {
+          items = apiResp.data.map(a => ({
+            title: (a.question && a.question.title) || '',
+            link: 'https://www.zhihu.com/question/' + (a.question && a.question.id) + '/answer/' + a.id,
+            description: a.content || '',
+            pubDate: a.created_time ? new Date(a.created_time * 1000).toUTCString() : '',
+            author: (a.author && a.author.name) || userName,
+            guid: 'zhihu-answer-' + a.id,
+          })).filter(i => i.title);
+          if (apiResp.data[0] && apiResp.data[0].author) userName = apiResp.data[0].author.name || userId;
+        }
+      }
+
+      console.log('Got ' + items.length + ' answers (' + result.source + ')');
+      return items.length > 0 ? {
+        title: userName + ' 的知乎回答',
+        link: pageUrl,
+        description: headline,
         items,
-      };
+      } : null;
     }
 
     // ========== Main ==========
@@ -460,9 +475,9 @@ let
               await new Promise(r => setTimeout(r, 2000));
               let result = null;
               if (feed.type === 'posts') {
-                result = await scrapePosts(page, feed.usertype || 'people', feed.id, cookieStr);
+                result = await scrapePosts(page, feed.usertype || 'people', feed.id);
               } else if (feed.type === 'answers') {
-                result = await scrapeAnswers(page, feed.id, cookieStr);
+                result = await scrapeAnswers(page, feed.id);
               } else {
                 console.error('Unknown feed type: ' + feed.type);
                 continue;
