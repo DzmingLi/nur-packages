@@ -31,6 +31,11 @@ let
     (async () => {
       const seedCookies = getSeedCookies();
 
+      if (!seedCookies || !seedCookies.includes('z_c0=')) {
+        console.log('No valid seed cookies (missing z_c0). Skipping refresh.');
+        process.exit(0);
+      }
+
       const browser = await chromium.launch({
         headless: true,
         executablePath: process.env.CHROMIUM_EXEC_PATH,
@@ -80,16 +85,31 @@ let
         if (!zseCk) { console.error('Failed to get __zse_ck'); process.exit(1); }
         console.log('Got __zse_ck:', zseCk.substring(0, 10) + '...');
 
-        // Collect all cookies
-        const allCookies = await context.cookies('https://www.zhihu.com');
-        const cookieStr = allCookies.map(c => c.name + '=' + c.value).join('; ');
+        // Merge: start with seed cookies, then overlay browser cookies
+        // This preserves any seed cookie fields the browser didn't generate
+        const seedMap = new Map();
+        cookiePairs.forEach(pair => {
+          const idx = pair.indexOf('=');
+          if (idx > 0) seedMap.set(pair.substring(0, idx), pair.substring(idx + 1));
+        });
+
+        const browserCookies = await context.cookies('https://www.zhihu.com');
+        browserCookies.forEach(c => seedMap.set(c.name, c.value));
+
+        if (!seedMap.has('z_c0')) {
+          console.error('Merged cookies lost z_c0. Not overwriting env file.');
+          process.exit(1);
+        }
+
+        const cookieStr = Array.from(seedMap.entries()).map(([k, v]) => k + '=' + v).join('; ');
+        console.log('Merged', seedMap.size, 'cookies (seed:', cookiePairs.length, '+ browser:', browserCookies.length, ')');
 
         // Write env file in shell-sourceable format
         writeFileSync(envFile,
           "ZHIHU_COOKIES='" + cookieStr.replace(/'/g, "'\\'''") + "'\n",
           { mode: 0o600 });
 
-        console.log('Wrote', allCookies.length, 'cookies to env file');
+        console.log('Wrote', seedMap.size, 'cookies to env file');
       } finally {
         await browser.close();
       }
