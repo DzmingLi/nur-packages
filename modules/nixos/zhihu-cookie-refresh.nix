@@ -113,44 +113,39 @@ let
           process.exit(2);
         }
 
-        // Diagnose: check if v3.js loaded and __g global exists
-        const diag = await page.evaluate(() => ({
-          hasG: typeof __g !== 'undefined',
-          gKeys: typeof __g !== 'undefined' ? Object.keys(__g).join(',') : 'N/A',
-          gCk: typeof __g !== 'undefined' ? __g.ck : 'N/A',
-          docCookieHasZseCk: document.cookie.includes('__zse_ck'),
-          webdriver: navigator.webdriver,
-          webglRenderer: (() => {
-            try {
-              const c = document.createElement('canvas');
-              const gl = c.getContext('webgl');
-              const ext = gl.getExtension('WEBGL_debug_renderer_info');
-              return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'no ext';
-            } catch(e) { return 'error: ' + e.message; }
-          })(),
-        }));
-        console.log('Diagnostics:', JSON.stringify(diag));
-
-        // Wait for __zse_ck
+        // Check if __zse_ck already in document.cookie (from page's own JS)
         let zseCk = null;
-
-        // Method 1: check __g.ck directly
-        if (diag.gCk && diag.gCk !== 'N/A' && typeof diag.gCk === 'string' && diag.gCk.length > 5) {
-          zseCk = diag.gCk;
-          console.log('Got __zse_ck from __g.ck');
+        const initCk = await page.evaluate(() =>
+          document.cookie.match(/__zse_ck=([^;]+)/)?.[1]
+        );
+        if (initCk) {
+          zseCk = initCk;
+          console.log('Got __zse_ck from page JS');
         }
 
-        // Method 2: wait for document.cookie
+        // If not, manually inject zse-ck/v3.js and wait for it
         if (!zseCk) {
+          console.log('__zse_ck not found, injecting v3.js...');
+          await page.addScriptTag({ url: 'https://static.zhihu.com/zse-ck/v3.js' });
           try {
             await page.waitForFunction(
               "document.cookie.includes('__zse_ck')",
               { timeout: 15000 }
             );
-            const m = await page.evaluate(() =>
+            zseCk = await page.evaluate(() =>
               document.cookie.match(/__zse_ck=([^;]+)/)?.[1]
             );
-            if (m) { zseCk = m; console.log('Got __zse_ck from document.cookie'); }
+            if (zseCk) console.log('Got __zse_ck after injecting v3.js');
+          } catch {}
+        }
+
+        // Last resort: try reading __g.ck global
+        if (!zseCk) {
+          try {
+            zseCk = await page.evaluate(() =>
+              typeof __g !== 'undefined' && __g.ck ? __g.ck : null
+            );
+            if (zseCk) console.log('Got __zse_ck from __g.ck');
           } catch {}
         }
 
