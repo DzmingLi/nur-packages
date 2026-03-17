@@ -1,4 +1,4 @@
-{ lib, stdenvNoCC,fetchpijul, ... }:
+{ lib, stdenvNoCC, fetchpijul, python3Packages, ... }:
 let
   inherit (lib)
     maintainers
@@ -39,6 +39,8 @@ stdenvNoCC.mkDerivation rec {
 
   pname = "windows-fonts";
 
+  nativeBuildInputs = [ python3Packages.fonttools ];
+
   preferLocalBuild = true;
 
   dontUnpack = true;
@@ -47,7 +49,19 @@ stdenvNoCC.mkDerivation rec {
     runHook preInstall
 
     mkdir -p $out/share/fonts/truetype
-    cp -a ${src}/*.{ttf,ttc} $out/share/fonts/truetype/
+    cp -a ${src}/*.ttf $out/share/fonts/truetype/
+
+    # Split .ttc into individual .ttf to work around Typst font selection bug
+    # https://github.com/typst/typst/issues/6205
+    for ttc in ${src}/*.ttc; do
+      python3 -c "
+from fontTools.ttLib import TTCollection
+ttc = TTCollection('$ttc')
+for i, font in enumerate(ttc):
+    name = font['name'].getDebugName(6) or f'face{i}'
+    font.save('$out/share/fonts/truetype/' + name + '.ttf')
+"
+    done
 
     runHook postInstall
   '';
