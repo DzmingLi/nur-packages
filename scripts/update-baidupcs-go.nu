@@ -42,13 +42,15 @@ open $pkg_file --raw
 
 print "Calculating vendorHash..."
 let build_output = (do { nix build .#baidupcs-go --no-link } | complete | get stderr)
-let vendor_hash = ($build_output | parse -r 'got: (sha256-[A-Za-z0-9+/=]+)' | first | get capture0)
+let parsed = ($build_output | parse -r 'got: (sha256-[A-Za-z0-9+/=]+)')
 
-if ($vendor_hash | is-empty) {
+if ($parsed | is-empty) {
   print -e "Failed to determine vendorHash. Build output:"
   print -e $build_output
   exit 1
 }
+
+let vendor_hash = ($parsed | first | get capture0)
 
 open $pkg_file --raw
   | str replace $'vendorHash = "($placeholder_vendor_hash)";' $'vendorHash = "($vendor_hash)";'
