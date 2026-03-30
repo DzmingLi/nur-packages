@@ -49,10 +49,17 @@ stdenvNoCC.mkDerivation rec {
     runHook preInstall
 
     mkdir -p $out/share/fonts/truetype
-    cp -a ${src}/*.ttf $out/share/fonts/truetype/
+    # Exclude simsunb.ttf (SimSun-ExtB) to work around Typst font selection bug
+    # https://github.com/typst/typst/issues/6205
+    # TODO: remove this exclusion once the upstream fix is merged
+    for ttf in ${src}/*.ttf; do
+      case "$(basename "$ttf")" in
+        simsunb.ttf) ;;
+        *) cp -a "$ttf" $out/share/fonts/truetype/ ;;
+      esac
+    done
 
     # Split .ttc into individual .ttf to work around Typst font selection bug
-    # https://github.com/typst/typst/issues/6205
     for ttc in ${src}/*.ttc; do
       python3 -c "
 from fontTools.ttLib import TTCollection
