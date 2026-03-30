@@ -6,7 +6,7 @@
 
 let
   pname = "wechat";
-  version = "4.1.0.13";
+  version = "4.1.1.4";
 
   src = fetchurl {
     urls = [
