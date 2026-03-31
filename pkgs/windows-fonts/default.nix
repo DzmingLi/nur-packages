@@ -1,4 +1,4 @@
-{ lib, stdenvNoCC, fetchpijul, python3Packages, ... }:
+{ lib, stdenvNoCC, fetchpijul, ... }:
 let
   inherit (lib)
     maintainers
@@ -30,7 +30,7 @@ let
     redistributable = false;
   };
 in
-stdenvNoCC.mkDerivation rec {
+stdenvNoCC.mkDerivation {
   inherit
     meta
     src
@@ -38,8 +38,6 @@ stdenvNoCC.mkDerivation rec {
     ;
 
   pname = "windows-fonts";
-
-  nativeBuildInputs = [ python3Packages.fonttools ];
 
   preferLocalBuild = true;
 
@@ -49,26 +47,8 @@ stdenvNoCC.mkDerivation rec {
     runHook preInstall
 
     mkdir -p $out/share/fonts/truetype
-    # Exclude simsunb.ttf (SimSun-ExtB) to work around Typst font selection bug
-    # https://github.com/typst/typst/issues/6205
-    # TODO: remove this exclusion once the upstream fix is merged
-    for ttf in ${src}/*.ttf; do
-      case "$(basename "$ttf")" in
-        simsunb.ttf) ;;
-        *) cp -a "$ttf" $out/share/fonts/truetype/ ;;
-      esac
-    done
-
-    # Split .ttc into individual .ttf to work around Typst font selection bug
-    for ttc in ${src}/*.ttc; do
-      python3 -c "
-from fontTools.ttLib import TTCollection
-ttc = TTCollection('$ttc')
-for i, font in enumerate(ttc):
-    name = font['name'].getDebugName(6) or f'face{i}'
-    font.save('$out/share/fonts/truetype/' + name + '.ttf')
-"
-    done
+    cp -a ${src}/*.ttf $out/share/fonts/truetype/
+    cp -a ${src}/*.ttc $out/share/fonts/truetype/
 
     runHook postInstall
   '';
