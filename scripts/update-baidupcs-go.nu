@@ -42,7 +42,7 @@ open $pkg_file --raw
 
 print "Calculating vendorHash..."
 let build_output = (do { nix build .#baidupcs-go --no-link } | complete | get stderr)
-let parsed = ($build_output | parse -r 'got: (sha256-[A-Za-z0-9+/=]+)')
+let parsed = ($build_output | parse -r 'got:\s+(sha256-[A-Za-z0-9+/=]+)')
 
 if ($parsed | is-empty) {
   print -e "Failed to determine vendorHash. Build output:"
