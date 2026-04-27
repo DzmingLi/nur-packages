@@ -1,4 +1,4 @@
-{ lib, stdenvNoCC, fetchpijul, ... }:
+{ lib, stdenvNoCC, fetchzip, ... }:
 let
   inherit (lib)
     maintainers
@@ -14,9 +14,9 @@ let
     redistributable = false;
   };
 
-  src = fetchpijul{
-    url="https://nest.pijul.com/DzmingLi/windows-fonts";
-    hash="sha256-TBqFS+qs86RyOMOori8mWKscgJ3r1IzI0VRnPpAGkw8=";
+  src = fetchzip {
+    url = "https://github.com/DzmingLi/nur-packages/releases/download/windows-fonts-${version}/windows-fonts-${version}.tar.gz";
+    hash = "sha256-gOkhXIyFefeGQZ8PJNINVtkE2gcvX4pHmQPTErNc9uM=";
   };
 
   meta = {

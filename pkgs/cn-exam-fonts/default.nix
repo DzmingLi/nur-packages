@@ -1,11 +1,11 @@
-{ pkgs, stdenv,fetchpijul, ... }:
+{ pkgs, stdenvNoCC, fetchzip, ... }:
 
-stdenv.mkDerivation {
+stdenvNoCC.mkDerivation {
   pname = "cn-exam-fonts";
   version = "1.0.0";
-  src = fetchpijul{
-    url="https://nest.pijul.com/DzmingLi/cn-exam-fonts";
-    hash="sha256-HvnvEnOVSRcL5tq7tREiU65ox4q7j4KOmqtQFG1f7dw=";
+  src = fetchzip {
+    url = "https://github.com/DzmingLi/nur-packages/releases/download/cn-exam-fonts-1.0.0/cn-exam-fonts-1.0.0.tar.gz";
+    hash = "sha256-qGFct+yKb+DD/QkoRZnno7JirCBw0YZB/qHo3aOSGgY=";
   };
 
   installPhase = ''

@@ -1,17 +1,17 @@
-{ pkgs, stdenv,fetchpijul, ... }:
+{ pkgs, stdenvNoCC, fetchurl, ... }:
 
-stdenv.mkDerivation {
+stdenvNoCC.mkDerivation {
   pname = "Huiwen-mincho";
   version = "1.001";
-  src = fetchpijul{
-    url="https://nest.pijul.com/DzmingLi/Huiwen-mincho";
-    hash="sha256-rKNCXap4+Zd9KAJ3BbDQjT5k8WxQghly/sllV3dr5DY=";
+  src = fetchurl {
+    url = "https://github.com/DzmingLi/nur-packages/releases/download/Huiwen-mincho-1.001/huiwen-mincho.otf";
+    hash = "sha256-HqXQRQwNA0w+QHfytTPXT70b8fFNk4R3OJM45k09jZw=";
   };
 
-  installPhase = ''
-    mkdir -p $out/share/fonts/opentype/
-    cp -r *.otf $out/share/fonts/opentype/
+  dontUnpack = true;
 
+  installPhase = ''
+    install -Dm644 $src $out/share/fonts/opentype/huiwen-mincho.otf
   '';
 
   meta = with pkgs.lib; {
