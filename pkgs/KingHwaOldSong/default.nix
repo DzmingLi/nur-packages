@@ -1,16 +1,17 @@
-{ pkgs, stdenv,fetchpijul, ... }:
+{ pkgs, stdenvNoCC, fetchurl, ... }:
 
-stdenv.mkDerivation {
+stdenvNoCC.mkDerivation {
   pname = "KingHwaOldSong";
   version = "3.0";
-  src = fetchpijul{
-    url="https://nest.pijul.com/DzmingLi/KingHwaOldSong";
-    hash="sha256-aP3zbu+H2U4cAJbjPgR/91sA+bJfth9yBlLx1FboZp4=";
+  src = fetchurl {
+    url = "https://github.com/DzmingLi/nur-packages/releases/download/KingHwaOldSong-3.0/KingHwaOldSong-3.0.ttf";
+    hash = "sha256-9/75/EE+niND8LtDLFHMpBxEuP438HHchrBQiWrp+eI=";
   };
 
+  dontUnpack = true;
+
   installPhase = ''
-    mkdir -p $out/share/fonts/truetype/
-    cp -r *.ttf $out/share/fonts/truetype/
+    install -Dm644 $src $out/share/fonts/truetype/KingHwaOldSong-3.0.ttf
   '';
 
   meta = with pkgs.lib; {
