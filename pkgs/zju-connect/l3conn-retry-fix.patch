@@ -1,6 +1,6 @@
 --- a/client/easyconnect/l3conn.go
 +++ b/client/easyconnect/l3conn.go
-@@ -23,43 +23,58 @@
+@@ -23,43 +23,60 @@
  func (c *L3Conn) Read(p []byte) (n int, err error) {
  	c.recvLock.Lock()
  	defer c.recvLock.Unlock()
@@ -16,6 +16,7 @@
 +	for c.recvErrCount < 5 {
 +		n, err = c.recvConn.Read(p)
 +		if err == nil {
++			c.recvErrCount = 0
 +			return
  		}
 +		log.Printf("Error occurred while receiving: %v", err)
@@ -56,6 +57,7 @@
 +	for c.sendErrCount < 5 {
 +		n, err = c.sendConn.Write(p)
 +		if err == nil {
++			c.sendErrCount = 0
 +			return
  		}
 +		log.Printf("Error occurred while sending: %v", err)
