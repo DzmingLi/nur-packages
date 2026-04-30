@@ -96,15 +96,18 @@
  }
 --- a/client/easyconnect/l3conn.go
 +++ b/client/easyconnect/l3conn.go
-@@ -1,6 +1,7 @@
+@@ -1,8 +1,10 @@
  package easyconnect
  
  import (
 +	"errors"
  	"io"
  	"sync"
++	"time"
  
-@@ -23,43 +24,76 @@
+ 	"github.com/mythologyli/zju-connect/log"
+ )
+@@ -23,43 +25,88 @@
  func (c *L3Conn) Read(p []byte) (n int, err error) {
  	c.recvLock.Lock()
  	defer c.recvLock.Unlock()
@@ -137,7 +140,7 @@
 +		if hsErr != nil {
 +			log.Printf("Re-handshake failed (attempt %d/5): %v", c.recvErrCount, hsErr)
 +			// "Unexpected handshake reply" means the server rejected our token —
-+			// re-handshake with the same token will keep failing. Trigger a full
++			// re-handshake with the same token will keep failing. Trigger a
 +			// re-login to get fresh credentials before the next iteration.
 +			if errors.Is(hsErr, ErrUnexpectedRecvHandshake) || errors.Is(hsErr, ErrUnexpectedSendHandshake) {
 +				if reErr := c.easyConnectClient.Relogin(); reErr != nil {
@@ -145,6 +148,14 @@
 +				}
 +			}
 +			err = hsErr
++			// Linear backoff: 1s, 2s, 3s, 4s — total ~10s before final failure.
++			// After a re-login the server may take a few seconds to release
++			// kicked-session state and accept fresh tunnel handshakes; without
++			// this delay all 5 retries fire in < 1s and the loop exits before
++			// the server is ready.
++			if c.recvErrCount < 5 {
++				time.Sleep(time.Duration(c.recvErrCount) * time.Second)
++			}
 +			continue
  		}
 +		c.recvConn = newConn
@@ -186,7 +197,7 @@
 +		if hsErr != nil {
 +			log.Printf("Re-handshake failed (attempt %d/5): %v", c.sendErrCount, hsErr)
 +			// "Unexpected handshake reply" means the server rejected our token —
-+			// re-handshake with the same token will keep failing. Trigger a full
++			// re-handshake with the same token will keep failing. Trigger a
 +			// re-login to get fresh credentials before the next iteration.
 +			if errors.Is(hsErr, ErrUnexpectedSendHandshake) || errors.Is(hsErr, ErrUnexpectedRecvHandshake) {
 +				if reErr := c.easyConnectClient.Relogin(); reErr != nil {
@@ -194,6 +205,10 @@
 +				}
 +			}
 +			err = hsErr
++			// Linear backoff: see Read above for rationale.
++			if c.sendErrCount < 5 {
++				time.Sleep(time.Duration(c.sendErrCount) * time.Second)
++			}
 +			continue
  		}
 +		c.sendConn = newConn
