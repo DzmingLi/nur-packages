@@ -32,7 +32,7 @@
  	// Use username/password/(SMS code) to get the TwfID
  	if c.twfID == "" {
  		err := c.requestTwfID(graphCodeFile)
-@@ -187,5 +198,61 @@
+@@ -187,5 +198,70 @@
  		return err
  	}
  
@@ -65,14 +65,20 @@
 +	}
 +
 +	// Fast path: try a token-only refresh using existing TwfID (no 2FA).
++	// Note we also re-run requestIP — the SendConn/RecvConn handshake message
++	// bundles token + ipReverse; a new token paired with a stale ipReverse
++	// gets rejected by the tunnel server with the same "unexpected handshake
++	// reply" error we were trying to fix.
 +	if c.twfID != "" {
 +		log.Printf("Re-login: refreshing token via existing TwfID")
-+		if err := c.requestToken(); err == nil {
++		if err := c.requestToken(); err != nil {
++			log.Printf("Re-login: token refresh failed, falling back to full re-auth: %v", err)
++		} else if err := c.requestIP(); err != nil {
++			log.Printf("Re-login: requestIP failed after token refresh, falling back to full re-auth: %v", err)
++		} else {
 +			c.lastLoginAt = time.Now()
 +			log.Printf("Re-login: token refresh succeeded (no re-auth needed)")
 +			return nil
-+		} else {
-+			log.Printf("Re-login: token refresh failed, falling back to full re-auth: %v", err)
 +		}
 +	}
 +
@@ -87,6 +93,9 @@
 +		return err
 +	}
 +	if err := c.requestToken(); err != nil {
++		return err
++	}
++	if err := c.requestIP(); err != nil {
 +		return err
 +	}
 +
@@ -107,7 +116,7 @@
  
  	"github.com/mythologyli/zju-connect/log"
  )
-@@ -23,43 +25,88 @@
+@@ -23,43 +25,101 @@
  func (c *L3Conn) Read(p []byte) (n int, err error) {
  	c.recvLock.Lock()
  	defer c.recvLock.Unlock()
@@ -120,6 +129,10 @@
 -		c.recvConn, err = c.easyConnectClient.RecvConn()
 -		if err != nil {
 -			return 0, err
++	// Allow at most one Relogin per Read call. Without this cap, a server
++	// that consistently rejects every fresh token would keep us looping
++	// forever (each successful Relogin resetting recvErrCount).
++	reloggedIn := false
 +	for c.recvErrCount < 5 {
 +		n, err = c.recvConn.Read(p)
 +		if err == nil {
@@ -139,21 +152,27 @@
 +		newConn, hsErr := c.easyConnectClient.RecvConn()
 +		if hsErr != nil {
 +			log.Printf("Re-handshake failed (attempt %d/5): %v", c.recvErrCount, hsErr)
-+			// "Unexpected handshake reply" means the server rejected our token —
-+			// re-handshake with the same token will keep failing. Trigger a
-+			// re-login to get fresh credentials before the next iteration.
-+			if errors.Is(hsErr, ErrUnexpectedRecvHandshake) || errors.Is(hsErr, ErrUnexpectedSendHandshake) {
++			// "Unexpected handshake reply" means the server rejected our
++			// token — re-handshake with the same token will keep failing.
++			// Trigger a re-login to get fresh credentials, then reset the
++			// retry budget so the new credentials get a real chance (without
++			// reset, a Relogin triggered at attempt 5 would succeed but the
++			// loop would then exit because count == 5 before any retry).
++			if !reloggedIn && (errors.Is(hsErr, ErrUnexpectedRecvHandshake) || errors.Is(hsErr, ErrUnexpectedSendHandshake)) {
++				reloggedIn = true
 +				if reErr := c.easyConnectClient.Relogin(); reErr != nil {
 +					log.Printf("Re-login failed: %v", reErr)
++				} else {
++					c.recvErrCount = 0
 +				}
 +			}
 +			err = hsErr
-+			// Linear backoff: 1s, 2s, 3s, 4s — total ~10s before final failure.
-+			// After a re-login the server may take a few seconds to release
-+			// kicked-session state and accept fresh tunnel handshakes; without
-+			// this delay all 5 retries fire in < 1s and the loop exits before
-+			// the server is ready.
-+			if c.recvErrCount < 5 {
++			// Linear backoff: 1s, 2s, 3s, 4s — total ~10s before final
++			// failure. After a re-login the server may take a few seconds
++			// to release kicked-session state and accept fresh tunnel
++			// handshakes; without this delay all retries fire in < 1s and
++			// the loop exits before the server is ready.
++			if c.recvErrCount > 0 && c.recvErrCount < 5 {
 +				time.Sleep(time.Duration(c.recvErrCount) * time.Second)
 +			}
 +			continue
@@ -177,6 +196,8 @@
 -		c.sendConn, err = c.easyConnectClient.SendConn()
 -		if err != nil {
 -			return 0, err
++	// Allow at most one Relogin per Write call (see Read for rationale).
++	reloggedIn := false
 +	for c.sendErrCount < 5 {
 +		n, err = c.sendConn.Write(p)
 +		if err == nil {
@@ -196,17 +217,18 @@
 +		newConn, hsErr := c.easyConnectClient.SendConn()
 +		if hsErr != nil {
 +			log.Printf("Re-handshake failed (attempt %d/5): %v", c.sendErrCount, hsErr)
-+			// "Unexpected handshake reply" means the server rejected our token —
-+			// re-handshake with the same token will keep failing. Trigger a
-+			// re-login to get fresh credentials before the next iteration.
-+			if errors.Is(hsErr, ErrUnexpectedSendHandshake) || errors.Is(hsErr, ErrUnexpectedRecvHandshake) {
++			// See Read for rationale on Relogin + counter reset.
++			if !reloggedIn && (errors.Is(hsErr, ErrUnexpectedSendHandshake) || errors.Is(hsErr, ErrUnexpectedRecvHandshake)) {
++				reloggedIn = true
 +				if reErr := c.easyConnectClient.Relogin(); reErr != nil {
 +					log.Printf("Re-login failed: %v", reErr)
++				} else {
++					c.sendErrCount = 0
 +				}
 +			}
 +			err = hsErr
 +			// Linear backoff: see Read above for rationale.
-+			if c.sendErrCount < 5 {
++			if c.sendErrCount > 0 && c.sendErrCount < 5 {
 +				time.Sleep(time.Duration(c.sendErrCount) * time.Second)
 +			}
 +			continue
