@@ -1,6 +1,89 @@
+--- a/client/easyconnect/client.go
++++ b/client/easyconnect/client.go
+@@ -6,6 +6,7 @@
+ 	"errors"
+ 	"net"
+ 	"net/http"
++	"sync"
+ 	"time"
+ 
+ 	"github.com/mythologyli/zju-connect/client"
+@@ -38,6 +39,13 @@
+ 
+ 	ip        net.IP // Client IP
+ 	ipReverse []byte
++
++	// Re-login support: when L3Conn handshake fails with a "token rejected"
++	// style error, Relogin() can refresh twfID + token without restarting
++	// the process. Setup() saves graphCodeFile so Relogin() can reuse it.
++	graphCodeFile string
++	loginMu       sync.Mutex
++	lastLoginAt   time.Time
+ }
+ 
+ func NewClient(server, username, password, totpSecret string, tlsCert tls.Certificate, twfID string, testMultiLine, parseResource, useDomainResource bool) *Client {
+@@ -115,6 +123,9 @@
+ }
+ 
+ func (c *Client) Setup(graphCodeFile string) error {
++	// Save for later re-login attempts.
++	c.graphCodeFile = graphCodeFile
++
+ 	// Use username/password/(SMS code) to get the TwfID
+ 	if c.twfID == "" {
+ 		err := c.requestTwfID(graphCodeFile)
+@@ -187,5 +198,40 @@
+ 		return err
+ 	}
+ 
++	c.lastLoginAt = time.Now()
++	return nil
++}
++
++// Relogin re-authenticates with the server and refreshes the token. It is
++// safe to call concurrently — the mutex serialises attempts, and a debounce
++// window collapses bursty calls (multiple in-flight L3Conn goroutines all
++// noticing the dead token at once) into a single login round-trip.
++//
++// Resources / line list / client IP are left as-is: only twfID and token
++// are refreshed, since those are the parts the server invalidates when it
++// kicks our session.
++func (c *Client) Relogin() error {
++	c.loginMu.Lock()
++	defer c.loginMu.Unlock()
++
++	// If another goroutine just refreshed credentials, skip.
++	if !c.lastLoginAt.IsZero() && time.Since(c.lastLoginAt) < 10*time.Second {
++		log.Printf("Re-login: another goroutine refreshed credentials %.1fs ago, skipping", time.Since(c.lastLoginAt).Seconds())
++		return nil
++	}
++
++	log.Printf("Re-login: refreshing TwfID and token")
++	c.twfID = ""
++	c.token = nil
++
++	if err := c.requestTwfID(c.graphCodeFile); err != nil {
++		return err
++	}
++	if err := c.requestToken(); err != nil {
++		return err
++	}
++
++	c.lastLoginAt = time.Now()
++	log.Printf("Re-login succeeded")
+ 	return nil
+ }
 --- a/client/easyconnect/l3conn.go
 +++ b/client/easyconnect/l3conn.go
-@@ -23,43 +23,60 @@
+@@ -1,6 +1,7 @@
+ package easyconnect
+ 
+ import (
++	"errors"
+ 	"io"
+ 	"sync"
+ 
+@@ -23,43 +24,76 @@
  func (c *L3Conn) Read(p []byte) (n int, err error) {
  	c.recvLock.Lock()
  	defer c.recvLock.Unlock()
@@ -32,6 +115,14 @@
 +		newConn, hsErr := c.easyConnectClient.RecvConn()
 +		if hsErr != nil {
 +			log.Printf("Re-handshake failed (attempt %d/5): %v", c.recvErrCount, hsErr)
++			// "Unexpected handshake reply" means the server rejected our token —
++			// re-handshake with the same token will keep failing. Trigger a full
++			// re-login to get fresh credentials before the next iteration.
++			if errors.Is(hsErr, ErrUnexpectedRecvHandshake) || errors.Is(hsErr, ErrUnexpectedSendHandshake) {
++				if reErr := c.easyConnectClient.Relogin(); reErr != nil {
++					log.Printf("Re-login failed: %v", reErr)
++				}
++			}
 +			err = hsErr
 +			continue
  		}
@@ -73,6 +164,14 @@
 +		newConn, hsErr := c.easyConnectClient.SendConn()
 +		if hsErr != nil {
 +			log.Printf("Re-handshake failed (attempt %d/5): %v", c.sendErrCount, hsErr)
++			// "Unexpected handshake reply" means the server rejected our token —
++			// re-handshake with the same token will keep failing. Trigger a full
++			// re-login to get fresh credentials before the next iteration.
++			if errors.Is(hsErr, ErrUnexpectedSendHandshake) || errors.Is(hsErr, ErrUnexpectedRecvHandshake) {
++				if reErr := c.easyConnectClient.Relogin(); reErr != nil {
++					log.Printf("Re-login failed: %v", reErr)
++				}
++			}
 +			err = hsErr
 +			continue
  		}
@@ -84,3 +183,38 @@
  }
  
  func (c *L3Conn) Close() error {
+--- a/client/easyconnect/protocol.go
++++ b/client/easyconnect/protocol.go
+@@ -10,6 +10,14 @@
+ 	"github.com/refraction-networking/utls"
+ )
+ 
++// Sentinel handshake errors. Exported so callers (e.g. L3Conn) can decide
++// to trigger a full re-login on these specific errors instead of just
++// retrying the handshake with the same dead token.
++var (
++	ErrUnexpectedRecvHandshake = errors.New("unexpected recv handshake reply")
++	ErrUnexpectedSendHandshake = errors.New("unexpected send handshake reply")
++)
++
+ type fakeHeartBeatExtension struct {
+ 	*tls.GenericExtension
+ }
+@@ -90,7 +98,7 @@
+ 	log.DebugDumpHex(reply[:n])
+ 
+ 	if reply[0] != 0x01 {
+-		return nil, errors.New("unexpected recv handshake reply")
++		return nil, ErrUnexpectedRecvHandshake
+ 	}
+ 
+ 	return conn, nil
+@@ -129,7 +137,7 @@
+ 	log.DebugDumpHex(reply[:n])
+ 
+ 	if reply[0] != 0x02 {
+-		return nil, errors.New("unexpected send handshake reply")
++		return nil, ErrUnexpectedSendHandshake
+ 	}
+ 
+ 	return conn, err
