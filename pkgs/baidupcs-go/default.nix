@@ -2,6 +2,7 @@
   buildGoModule,
   fetchFromGitHub,
   lib,
+  nix-update-script,
   versionCheckHook,
 }:
 buildGoModule (finalAttrs: {
@@ -35,6 +36,8 @@ buildGoModule (finalAttrs: {
   postVersionCheck = ''
     rm -f $out/bin/pcs_config.json
   '';
+
+  passthru.updateScript = nix-update-script { };
 
   meta = {
     mainProgram = "BaiduPCS-Go";

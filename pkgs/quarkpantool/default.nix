@@ -3,6 +3,7 @@
   python3Packages,
   fetchFromGitHub,
   makeWrapper,
+  nix-update-script,
   playwright-driver,
 }:
 
@@ -48,6 +49,8 @@ python3Packages.buildPythonApplication rec {
 
     runHook postInstall
   '';
+
+  passthru.updateScript = nix-update-script { };
 
   meta = with lib; {
     description = "一个批量转存、分享和下载夸克网盘文件的命令行工具";

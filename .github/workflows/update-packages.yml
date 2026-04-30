@@ -1,11 +1,8 @@
-# This is a GitHub Actions workflow to automatically update packages.
+# GitHub Actions workflow to automatically update packages.
 name: Update Packages
 
 on:
-  # Allows you to trigger this workflow manually from the Actions tab on GitHub.
   workflow_dispatch:
-  # Defines a schedule. This example runs at 08:00 UTC every day.
-  # You can customize the cron schedule to your liking.
   schedule:
     - cron: '0 8 * * *'
 
@@ -21,39 +18,47 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Update flake inputs
-        run: nix flake update
-
-      - name: Install nushell
-        run: nix profile install nixpkgs#nushell
-
-      - name: Run update scripts
-        run: |
-          nu scripts/update-baidupcs-go.nu
-          nu scripts/update-moonbit.nu
-          nu scripts/update-quarkpantool.nu
-          nu scripts/update-wechat.nu
-          nu scripts/update-blueprint-mcp.nu
-          nu scripts/update-context7-mcp.nu
-
-      - name: Commit and push changes
+      - name: Configure git
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-          if git diff --quiet; then
-            echo "No changes to commit."
-            exit 0
+      - name: Update flake inputs
+        run: |
+          nix flake update
+          if ! git diff --quiet flake.lock; then
+            git add flake.lock
+            git commit -m "flake: update inputs"
           fi
 
-          echo "Committing updated hashes..."
-          git add flake.lock \
-            pkgs/baidupcs-go/default.nix \
-            pkgs/moonbit/default.nix \
-            pkgs/quarkpantool/default.nix \
-            pkgs/wechat/default.nix \
-            pkgs/blueprint-mcp/default.nix \
-            pkgs/context7-mcp/default.nix \
-            pkgs/context7-mcp/package-lock.json
-          git commit -m "packages: update to latest"
-          git push
+      - name: Update packages via nix-update
+        run: |
+          nix-shell -p nix-update --run '
+            nix-update --flake baidupcs-go --commit
+            nix-update --flake quarkpantool --commit
+            nix-update --flake blueprint-mcp --commit
+            nix-update --flake zju-connect --version=branch --commit
+          '
+
+      - name: Update special packages via nu scripts
+        run: |
+          nix profile install nixpkgs#nushell
+          nu scripts/update-moonbit.nu
+          nu scripts/update-wechat.nu
+          nu scripts/update-context7-mcp.nu
+
+          if ! git diff --quiet; then
+            git add pkgs/moonbit/default.nix \
+              pkgs/wechat/default.nix \
+              pkgs/context7-mcp/default.nix \
+              pkgs/context7-mcp/package-lock.json
+            git commit -m "packages: update moonbit/wechat/context7-mcp"
+          fi
+
+      - name: Push changes
+        run: |
+          if [ "$(git rev-list HEAD ^origin/main --count 2>/dev/null || echo 0)" -gt 0 ]; then
+            git push
+          else
+            echo "Nothing to push."
+          fi
