@@ -32,7 +32,7 @@
  	// Use username/password/(SMS code) to get the TwfID
  	if c.twfID == "" {
  		err := c.requestTwfID(graphCodeFile)
-@@ -187,5 +198,70 @@
+@@ -187,5 +198,69 @@
  		return err
  	}
  
@@ -65,16 +65,15 @@
 +	}
 +
 +	// Fast path: try a token-only refresh using existing TwfID (no 2FA).
-+	// Note we also re-run requestIP — the SendConn/RecvConn handshake message
-+	// bundles token + ipReverse; a new token paired with a stale ipReverse
-+	// gets rejected by the tunnel server with the same "unexpected handshake
-+	// reply" error we were trying to fix.
++	// We don't call requestIP here — same TwfID means same server-side
++	// session, so the assigned client IP (and thus c.ipReverse used by
++	// the SendConn/RecvConn handshake) doesn't change. Calling requestIP
++	// against an already-assigned session actually fails with
++	// "unexpected request IP reply" and would force us into the slow path.
 +	if c.twfID != "" {
 +		log.Printf("Re-login: refreshing token via existing TwfID")
 +		if err := c.requestToken(); err != nil {
 +			log.Printf("Re-login: token refresh failed, falling back to full re-auth: %v", err)
-+		} else if err := c.requestIP(); err != nil {
-+			log.Printf("Re-login: requestIP failed after token refresh, falling back to full re-auth: %v", err)
 +		} else {
 +			c.lastLoginAt = time.Now()
 +			log.Printf("Re-login: token refresh succeeded (no re-auth needed)")
