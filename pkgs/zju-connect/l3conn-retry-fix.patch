@@ -32,7 +32,7 @@
  	// Use username/password/(SMS code) to get the TwfID
  	if c.twfID == "" {
  		err := c.requestTwfID(graphCodeFile)
-@@ -187,5 +198,40 @@
+@@ -187,5 +198,61 @@
  		return err
  	}
  
@@ -40,14 +40,20 @@
 +	return nil
 +}
 +
-+// Relogin re-authenticates with the server and refreshes the token. It is
-+// safe to call concurrently — the mutex serialises attempts, and a debounce
-+// window collapses bursty calls (multiple in-flight L3Conn goroutines all
-+// noticing the dead token at once) into a single login round-trip.
++// Relogin refreshes credentials when the tunnel server rejects the cached
++// token. It is safe to call concurrently — the mutex serialises attempts,
++// and a debounce window collapses bursty calls (multiple in-flight L3Conn
++// goroutines all noticing the dead token at once) into a single round-trip.
 +//
-+// Resources / line list / client IP are left as-is: only twfID and token
-+// are refreshed, since those are the parts the server invalidates when it
-+// kicks our session.
++// Strategy: in most cases the long-lived TwfID (login session cookie) is
++// still valid — only the short-lived per-tunnel token is stale. Try
++// requestToken alone first; that hits a single endpoint with the existing
++// TwfID Cookie and gets a fresh sessionID/token without going through the
++// full username/password/2FA flow. Only fall back to a full re-login (which
++// may prompt for SMS / TOTP / captcha) if that token refresh fails — in
++// that case the TwfID itself has expired and full re-auth is unavoidable.
++//
++// Resources / line list / client IP are left untouched throughout.
 +func (c *Client) Relogin() error {
 +	c.loginMu.Lock()
 +	defer c.loginMu.Unlock()
@@ -58,10 +64,25 @@
 +		return nil
 +	}
 +
-+	log.Printf("Re-login: refreshing TwfID and token")
-+	c.twfID = ""
-+	c.token = nil
++	// Fast path: try a token-only refresh using existing TwfID (no 2FA).
++	if c.twfID != "" {
++		log.Printf("Re-login: refreshing token via existing TwfID")
++		if err := c.requestToken(); err == nil {
++			c.lastLoginAt = time.Now()
++			log.Printf("Re-login: token refresh succeeded (no re-auth needed)")
++			return nil
++		} else {
++			log.Printf("Re-login: token refresh failed, falling back to full re-auth: %v", err)
++		}
++	}
 +
++	// Slow path: TwfID expired (or never was set). Re-auth from scratch.
++	// This may prompt for SMS / TOTP / captcha if the server requires it.
++	// Note: we don't pre-null c.twfID or c.token — requestTwfID / requestToken
++	// overwrite them on success, and on failure we'd rather keep stale-but-
++	// non-nil values than risk a "token is nil" panic in concurrent SendConn
++	// calls that arrive while we're failing.
++	log.Printf("Re-login: full re-auth (refreshing TwfID + token)")
 +	if err := c.requestTwfID(c.graphCodeFile); err != nil {
 +		return err
 +	}
@@ -70,7 +91,7 @@
 +	}
 +
 +	c.lastLoginAt = time.Now()
-+	log.Printf("Re-login succeeded")
++	log.Printf("Re-login: full re-auth succeeded")
  	return nil
  }
 --- a/client/easyconnect/l3conn.go
