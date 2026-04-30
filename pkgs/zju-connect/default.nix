@@ -17,6 +17,20 @@ buildGoModule (finalAttrs: {
   };
   vendorHash = "sha256-H+WtDkq8FckXuriEQNh1vhsGIkw1U7RlhQeAbO0jUXQ=";
 
+  patches = [
+    # Fix L3Conn.{Read,Write} retry loop:
+    #   1. SendConn/RecvConn re-handshake failures (e.g. "unexpected send
+    #      handshake reply") used to bail out immediately, exhausting only 1
+    #      of the 5 retry attempts and propagating the error to a panic at
+    #      stack/gvisor/stack.go:105.
+    #   2. After a successful re-handshake the original `for n, err = ...; ...; {}`
+    #      loop exited (because err == nil) without actually retrying the
+    #      failed Read/Write on the new conn — silently returning n=0, err=nil.
+    # Rewrite the loop so re-handshake failures count against the retry
+    # budget and a successful re-handshake actually retries the I/O.
+    ./l3conn-retry-fix.patch
+  ];
+
   buildInputs = [
     stdenv.cc.cc.lib
   ];

@@ -1,0 +1,84 @@
+--- a/client/easyconnect/l3conn.go
++++ b/client/easyconnect/l3conn.go
+@@ -23,43 +23,58 @@
+ func (c *L3Conn) Read(p []byte) (n int, err error) {
+ 	c.recvLock.Lock()
+ 	defer c.recvLock.Unlock()
+-	for n, err = c.recvConn.Read(p); err != nil && c.recvErrCount < 5; {
+-
+-		log.Printf("Error occurred while receiving, retrying: %v", err)
+-
+-		// Do handshake again and create a new recvConn
+-		_ = c.recvConn.Close()
+-		c.recvConn, err = c.easyConnectClient.RecvConn()
+-		if err != nil {
+-			return 0, err
++	for c.recvErrCount < 5 {
++		n, err = c.recvConn.Read(p)
++		if err == nil {
++			return
+ 		}
++		log.Printf("Error occurred while receiving: %v", err)
+ 		c.recvErrCount++
+-		if c.recvErrCount >= 5 {
+-			return 0, err
++
++		// Do handshake again and create a new recvConn. If re-handshake itself
++		// fails (e.g. server returns "unexpected recv handshake reply"), count
++		// it against the same retry budget instead of bailing out immediately,
++		// then loop back and retry Read with the new conn.
++		_ = c.recvConn.Close()
++		newConn, hsErr := c.easyConnectClient.RecvConn()
++		if hsErr != nil {
++			log.Printf("Re-handshake failed (attempt %d/5): %v", c.recvErrCount, hsErr)
++			err = hsErr
++			continue
+ 		}
++		c.recvConn = newConn
++		log.Printf("Re-handshake succeeded (attempt %d/5), retrying read", c.recvErrCount)
+ 	}
+-	return
++	return 0, err
+ }
+ 
+ // try best to write, if return err!=nil, please panic
+ func (c *L3Conn) Write(p []byte) (n int, err error) {
+ 	c.sendLock.Lock()
+ 	defer c.sendLock.Unlock()
+-	for n, err = c.sendConn.Write(p); err != nil && c.sendErrCount < 5; {
+-		log.Printf("Error occurred while sending, retrying: %v", err)
+-
+-		// Do handshake again and create a new sendConn
+-		_ = c.sendConn.Close()
+-		c.sendConn, err = c.easyConnectClient.SendConn()
+-		if err != nil {
+-			return 0, err
++	for c.sendErrCount < 5 {
++		n, err = c.sendConn.Write(p)
++		if err == nil {
++			return
+ 		}
++		log.Printf("Error occurred while sending: %v", err)
+ 		c.sendErrCount++
+-		if c.sendErrCount >= 5 {
+-			return 0, err
++
++		// Do handshake again and create a new sendConn. If re-handshake itself
++		// fails (e.g. server returns "unexpected send handshake reply"), count
++		// it against the same retry budget instead of bailing out immediately,
++		// then loop back and retry Write with the new conn.
++		_ = c.sendConn.Close()
++		newConn, hsErr := c.easyConnectClient.SendConn()
++		if hsErr != nil {
++			log.Printf("Re-handshake failed (attempt %d/5): %v", c.sendErrCount, hsErr)
++			err = hsErr
++			continue
+ 		}
++		c.sendConn = newConn
++		log.Printf("Re-handshake succeeded (attempt %d/5), retrying write", c.sendErrCount)
+ 	}
+-	return
++	return 0, err
+ }
+ 
+ func (c *L3Conn) Close() error {
