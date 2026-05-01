@@ -1,4 +1,4 @@
-{ stdenv,lib,fetchzip,autoPatchelfHook, patchelf,makeWrapper}:
+{ stdenv,lib,fetchzip,autoPatchelfHook, patchelf,makeWrapper,nodejs}:
 let coreSrc = fetchzip{
   url = "https://cli.moonbitlang.com/cores/core-latest.tar.gz";
   sha256 = "sha256-rdNoPZvtHra7SmPv5rLyqusUkKNCCodDfifCTMqsrO0=";
@@ -43,6 +43,9 @@ stdenv.mkDerivation  {
   '';
   postFixup=''
     wrapProgram $out/bin/moon --set MOON_HOME $out
+    wrapProgram $out/bin/moonbit-lsp \
+      --set MOON_HOME $out \
+      --prefix PATH : ${lib.makeBinPath [ nodejs ]}
   '';
   meta=with lib;{
     mainProgram="moon";
