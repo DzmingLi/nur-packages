@@ -25,20 +25,21 @@ stdenv.mkDerivation  {
     patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" ./bin/moon
     patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" ./bin/moonc
     patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" ./bin/internal/tcc
-    chmod +x ./bin/*
-    cp -r ${coreSrc} ./core_writable
-    chmod -R u+w ./core_writable
-    pushd core_writable
-    ../bin/moon bundle --all --target-dir .
+    find ./bin -type f ! -name '*.wasm' -exec chmod +x {} +
+    mkdir -p ./lib
+    cp -r ${coreSrc} ./lib/core
+    chmod -R u+w ./lib/core
+    export MOON_HOME=$(pwd)
+    pushd lib/core
+    ../../bin/moon bundle --all --target-dir .
+    ../../bin/moon check
     popd
-    runHook postBuild  
+    runHook postBuild
   '';
   installPhase = ''
     runHook preInstall
     mkdir -p $out
     cp -r ./* $out/
-    mkdir -p $out/lib
-    mv ./core_writable $out/lib/core
     runHook postInstall
   '';
   postFixup=''
