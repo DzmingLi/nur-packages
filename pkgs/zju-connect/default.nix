@@ -17,6 +17,15 @@ buildGoModule (finalAttrs: {
   };
   vendorHash = "sha256-H+WtDkq8FckXuriEQNh1vhsGIkw1U7RlhQeAbO0jUXQ=";
 
+  patches = [
+    # Periodic /por/update_session.csp keepalive ping. Required for sangfor
+    # deployments with strict idle timeout (e.g. HUST), which otherwise
+    # close the session and cause "broken pipe" / panic cascades in the
+    # tunnel layer. Mirrors what the official EasyConnect client does
+    # (verified via mitmproxy capture).
+    ./session-keepalive.patch
+  ];
+
   buildInputs = [
     stdenv.cc.cc.lib
   ];
