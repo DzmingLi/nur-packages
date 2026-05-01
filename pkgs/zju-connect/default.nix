@@ -8,7 +8,7 @@
 }:
 buildGoModule (finalAttrs: {
   pname = "zju-connect";
-  version = "1.0.0-unstable-2026-03-25";
+  version = "nightly-unstable-2026-03-26";
   src = fetchFromGitHub {
     owner = "Mythologyli";
     repo = "zju-connect";
