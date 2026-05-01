@@ -41,10 +41,12 @@ python3Packages.buildPythonApplication rec {
     mkdir -p $out/bin
     makeWrapper ${python3Packages.python.interpreter} $out/bin/quarkpantool \
       --add-flags "$out/lib/quarkpantool/quark.py" \
+      --prefix PYTHONPATH : "${python3Packages.makePythonPath propagatedBuildInputs}" \
       --set PLAYWRIGHT_BROWSERS_PATH "${playwright-driver.browsers}"
 
     makeWrapper ${python3Packages.python.interpreter} $out/bin/quarkpantool-login \
       --add-flags "$out/lib/quarkpantool/quark_login.py" \
+      --prefix PYTHONPATH : "${python3Packages.makePythonPath propagatedBuildInputs}" \
       --set PLAYWRIGHT_BROWSERS_PATH "${playwright-driver.browsers}"
 
     runHook postInstall
