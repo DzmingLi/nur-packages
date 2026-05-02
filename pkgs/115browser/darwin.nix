@@ -29,6 +29,6 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     homepage = "https://pc.115.com/";
     license = lib.licenses.unfree;
     sourceProvenance = [ lib.sourceTypes.binaryNativeCode ];
-    platforms = [ "x86_64-darwin" "aarch64-darwin" ];
+    platforms = [ "aarch64-darwin" ];
   };
 })

@@ -30,6 +30,6 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     downloadPage = "https://mac.weixin.qq.com/";
     license = lib.licenses.unfree;
     sourceProvenance = [ lib.sourceTypes.binaryNativeCode ];
-    platforms = [ "x86_64-darwin" "aarch64-darwin" ];
+    platforms = [ "aarch64-darwin" ];
   };
 })
