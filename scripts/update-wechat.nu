@@ -58,47 +58,4 @@ def update-linux [] {
   }
 }
 
-def update-darwin [] {
-  let pkg_file = "pkgs/wechat/darwin.nix"
-  let page_url = "https://mac.weixin.qq.com/en"
-
-  let content = open $pkg_file --raw
-  let old_hash = ($content | parse -r 'hash = "(?<h>[^"]+)";' | first | get h)
-  let old_ver  = ($content | parse -r 'version = "(?<v>[^"]+)";' | first | get v)
-
-  print $"[darwin] current: ($old_ver) / ($old_hash)"
-
-  let new_ver = try {
-    ^curl -fsSL $page_url
-      | parse -r 'WeChatMac_(?<v>[0-9][0-9.]*)\.dmg'
-      | first
-      | get v
-      | str trim
-  } catch {
-    print -e $"[darwin] failed to discover version from ($page_url)"
-    return
-  }
-  print $"[darwin] discovered version: ($new_ver)"
-
-  let dmg_url = $"https://dldir1v6.qq.com/weixin/Universal/Mac/WeChatMac_($new_ver).dmg"
-  let new_hash = try {
-    ^nix-hash --to-sri --type sha256 (^nix-prefetch-url $dmg_url | str trim) | str trim
-  } catch {
-    print -e $"[darwin] failed to prefetch ($dmg_url)"
-    return
-  }
-  print $"[darwin] latest:  ($new_ver) / ($new_hash)"
-
-  if $old_hash == $new_hash and $old_ver == $new_ver {
-    print "[darwin] up-to-date"
-  } else {
-    let updated = ($content
-      | str replace --regex 'version = "[^"]+";' $'version = "($new_ver)";'
-      | str replace --regex 'hash = "[^"]+";' $'hash = "($new_hash)";')
-    $updated | save -f $pkg_file
-    print $"[darwin] updated ($pkg_file)"
-  }
-}
-
 update-linux
-update-darwin
