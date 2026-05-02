@@ -55,7 +55,7 @@ jobs:
           nu scripts/update-context7-mcp.nu
 
           if not (git status --porcelain | str trim | is-empty) {
-            git add pkgs/moonbit/default.nix pkgs/wechat/default.nix pkgs/context7-mcp/default.nix pkgs/context7-mcp/package-lock.json
+            git add pkgs/moonbit/default.nix pkgs/wechat/linux.nix pkgs/wechat/darwin.nix pkgs/context7-mcp/default.nix pkgs/context7-mcp/package-lock.json
             git commit -m "packages: update moonbit/wechat/context7-mcp"
           }
 
