@@ -45,7 +45,7 @@ stdenv.mkDerivation {
     chmod -R u+w ./lib/core
     export MOON_HOME=$(pwd)
     pushd lib/core
-    ../../bin/moon bundle --all --target-dir .
+    ../../bin/moon bundle --all
     ../../bin/moon check
     popd
     runHook postBuild
