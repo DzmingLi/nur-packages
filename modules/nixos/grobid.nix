@@ -5,6 +5,15 @@ with lib;
 let
   cfg = config.services.grobid;
 
+  # grobidHome must be a WRITABLE absolute path. Some internal code paths
+  # (notably pdfalto temp-file creation) resolve `<grobidHome>/tmp` directly
+  # and ignore the configured `temp` setting — so even with `temp:` pointed
+  # elsewhere, writes to `<grobidHome>/tmp` fail when grobidHome lives in
+  # the read-only nix store. ExecStartPre below populates a writable mirror
+  # via `cp -rs` (read-only files become symlinks back to the package; only
+  # `tmp/` is a real writable directory).
+  grobidStateHome = "/var/lib/grobid/grobid-home";
+
   configFile = pkgs.runCommand "grobid.yaml"
     { nativeBuildInputs = [ pkgs.yq-go ]; }
     ''
@@ -13,10 +22,31 @@ let
         | .server.applicationConnectors[0].bindHost = "${cfg.listenAddress}"
         | .server.adminConnectors[0].port = ${toString cfg.adminPort}
         | .server.adminConnectors[0].bindHost = "${cfg.listenAddress}"
-        | .grobid.temp = "/var/lib/grobid/tmp"
+        | .grobid.grobidHome = "${grobidStateHome}"
+        | .grobid.temp = "${grobidStateHome}/tmp"
         | .grobid.concurrency = ${toString cfg.concurrency}
       ' ${cfg.package}/share/grobid/grobid-home/config/grobid.yaml > $out
     '';
+
+  prepScript = pkgs.writeShellScript "grobid-prep" ''
+    set -eu
+    src="${cfg.package}/share/grobid/grobid-home"
+    dst="${grobidStateHome}"
+    # Repopulate when the source package changes (marker file tracks it).
+    marker="$dst/.populated-from"
+    expected="${cfg.package}"
+    if [ ! -e "$marker" ] || [ "$(cat "$marker" 2>/dev/null)" != "$expected" ]; then
+      rm -rf "$dst"
+      mkdir -p "$(dirname "$dst")"
+      ${pkgs.coreutils}/bin/cp -rsf "$src" "$dst"
+      # tmp is shipped as part of grobid-home; replace the symlink with a
+      # real writable directory.
+      rm -rf "$dst/tmp"
+      mkdir -p "$dst/tmp"
+      chmod -R u+w "$dst/tmp"
+      printf %s "$expected" > "$marker"
+    fi
+  '';
 in
 {
   options.services.grobid = {
@@ -73,8 +103,8 @@ in
         Type = "simple";
         DynamicUser = true;
         StateDirectory = "grobid";
-        WorkingDirectory = "${cfg.package}/share/grobid";
-        ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p /var/lib/grobid/tmp";
+        WorkingDirectory = "/var/lib/grobid";
+        ExecStartPre = "${prepScript}";
         ExecStart = "${cfg.package}/bin/grobid-service server ${configFile}";
         Restart = "on-failure";
         RestartSec = "10s";
