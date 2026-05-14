@@ -36,14 +36,21 @@ let
     marker="$dst/.populated-from"
     expected="${cfg.package}"
     if [ ! -e "$marker" ] || [ "$(cat "$marker" 2>/dev/null)" != "$expected" ]; then
-      rm -rf "$dst"
+      # Wipe any previous mirror. Directories inherited 555 from the nix
+      # store via `cp -rs`, so chmod first or rm fails "Permission denied".
+      if [ -d "$dst" ]; then
+        chmod -R u+w "$dst"
+        rm -rf "$dst"
+      fi
       mkdir -p "$(dirname "$dst")"
       ${pkgs.coreutils}/bin/cp -rsf "$src" "$dst"
-      # tmp is shipped as part of grobid-home; replace the symlink with a
-      # real writable directory.
+      # cp -rs propagates source dir mode (555). Make every dir writable so
+      # subsequent restarts can clean up + grobid can write into tmp.
+      chmod -R u+w "$dst"
+      # tmp ships as a symlink/dir inside grobid-home; replace with a real
+      # writable directory so pdfalto can write its temp PDFs.
       rm -rf "$dst/tmp"
       mkdir -p "$dst/tmp"
-      chmod -R u+w "$dst/tmp"
       printf %s "$expected" > "$marker"
     fi
   '';
