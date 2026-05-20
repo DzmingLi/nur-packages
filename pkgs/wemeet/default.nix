@@ -37,8 +37,16 @@
   libpsl,
   libkrb5,
   xkeyboard_config,
+  libsForQt5,
   pkg-config,
+  fetchFromGitHub,
+  cmake,
+  ninja,
+  wireplumber,
+  libportal,
+  xdg-desktop-portal,
   opencv4WithoutCuda,
+  pipewire,
   fetchgit,
 }:
 
@@ -48,9 +56,47 @@
 #      时 libxcast 走 wayland EGL 平台导致的 SIGSEGV
 #   2. 只生成单一 `wemeet` binary，走 wayland 原生模式
 #      (QT_QPA_PLATFORM=wayland) + camera hook
-#   3. 不注入 libhook.so (wemeet-wayland-screenshare) —— wemeet 3.26.10 内部
-#      已自带 xdg-portal 屏幕共享路径，libhook 双轨叠加会在结束共享时段错
+#   3. 恢复 nixpkgs 的 wemeet-wayland-screenshare libhook.so，供 Wayland 屏幕共享使用
 let
+  wemeet-wayland-screenshare = stdenv.mkDerivation {
+    pname = "wemeet-wayland-screenshare";
+    version = "0-unstable-2025-05-31";
+
+    src = fetchFromGitHub {
+      owner = "xuwd1";
+      repo = "wemeet-wayland-screenshare";
+      rev = "7f338966e162612b09d838512b11af5901414d05";
+      hash = "sha256-UtPcgEa+9KrF4CblC8D4oClvVJs+a5DWtwH/fD7puVs=";
+      fetchSubmodules = true;
+    };
+
+    nativeBuildInputs = [
+      cmake
+      ninja
+      pkg-config
+    ];
+
+    buildInputs = [
+      wireplumber
+      libportal
+      xdg-desktop-portal
+      libsForQt5.qtwayland
+      opencv4WithoutCuda
+      pipewire
+      libxdamage
+      libxrandr
+      libx11
+    ];
+
+    dontWrapQtApps = true;
+
+    meta = {
+      description = "Hooked WeMeet that enables screenshare on Wayland";
+      homepage = "https://github.com/xuwd1/wemeet-wayland-screenshare";
+      license = lib.licenses.mit;
+    };
+  };
+
   libwemeetwrap = stdenv.mkDerivation {
     pname = "libwemeetwrap";
     version = "0-unstable-2023-12-14";
@@ -247,11 +293,11 @@ stdenv.mkDerivation {
       --prefix LD_LIBRARY_PATH : $out/app/wemeet/lib:${libxext}/lib:${libxdamage}/lib:${opencv4WithoutCuda}/lib:${libxrandr}/lib \
       --prefix PATH : $out/app/wemeet/bin \
       --prefix QT_PLUGIN_PATH : $out/app/wemeet/plugins \
-      --prefix LD_PRELOAD : ${libwemeetwrap}/lib/libwemeetwrap.so:${wemeet-x11-fix}/lib/libwemeet-x11-fix.so:${wemeet-camera-fix}/lib/libwemeet-camera-fix.so
+      --prefix LD_PRELOAD : ${wemeet-wayland-screenshare}/lib/wemeet/libhook.so:${libwemeetwrap}/lib/libwemeetwrap.so:${wemeet-x11-fix}/lib/libwemeet-x11-fix.so:${wemeet-camera-fix}/lib/libwemeet-camera-fix.so
   '';
 
   meta = {
-    description = "Tencent Video Conferencing (NUR fork: wayland-native + camera hook, no screenshare hook)";
+    description = "Tencent Video Conferencing (NUR fork: wayland-native + camera hook + screenshare hook)";
     homepage = "https://wemeet.qq.com";
     license = lib.licenses.unfree;
     mainProgram = "wemeet";
