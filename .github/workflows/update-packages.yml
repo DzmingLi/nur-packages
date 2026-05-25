@@ -54,7 +54,7 @@ jobs:
           nu scripts/update-wechat.nu
 
           if not (git status --porcelain | str trim | is-empty) {
-            git add pkgs/moonbit/default.nix pkgs/wechat/linux.nix pkgs/wechat/darwin.nix
+            git add pkgs/moonbit/default.nix pkgs/wechat/linux.nix
             git commit -m "packages: update moonbit/wechat"
           }
 
