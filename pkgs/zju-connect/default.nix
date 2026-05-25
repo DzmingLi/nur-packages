@@ -8,12 +8,12 @@
 }:
 buildGoModule (finalAttrs: {
   pname = "zju-connect";
-  version = "0-unstable-2026-03-26";
+  version = "0-unstable-2026-05-24";
   src = fetchFromGitHub {
     owner = "Mythologyli";
     repo = "zju-connect";
-    rev = "57ee9b6ef00375f64fb7b166b53f81e1b9ffadf0";
-    hash = "sha256-qRAo/PvSmfwhYh9IJ/iHNX8J2ARN8c1V3Vf763vZ7co=";
+    rev = "f97d271dc41c188723b64bdb1c83378bdfc85f71";
+    hash = "sha256-CNRdfshOAxNrpgJCMF/uUJzNUNL5z7pmfrGBCI9y2Vs=";
   };
   vendorHash = "sha256-H+WtDkq8FckXuriEQNh1vhsGIkw1U7RlhQeAbO0jUXQ=";
 
