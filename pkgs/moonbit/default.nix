@@ -3,17 +3,17 @@ let
   sources = {
     "x86_64-linux" = {
       url = "https://cli.moonbitlang.com/binaries/latest/moonbit-linux-x86_64.tar.gz";
-      sha256 = "sha256-T3yDl37n9ftiNlKPd+hDJAaiD9cZCEn4fjwpHCsh/yQ=";
+      sha256 = "sha256-mkyslthuoqDLdvbmnYHpe2OeIfsS2/I+InwXbWZUOS0=";
     };
     "aarch64-darwin" = {
       url = "https://cli.moonbitlang.com/binaries/latest/moonbit-darwin-aarch64.tar.gz";
-      sha256 = "sha256-eNgkFQ2cxxFObaAw8Q3ZXWOBbtHc/0BH5tS81zZZqQI=";
+      sha256 = "sha256-k5BHB8vy8/IzahQbyjI0uHMsykHyG2RJHHfwOI02TmM=";
     };
   };
   source = sources.${stdenv.hostPlatform.system} or (throw "moonbit: unsupported system ${stdenv.hostPlatform.system}");
   coreSrc = fetchzip {
     url = "https://cli.moonbitlang.com/cores/core-latest.tar.gz";
-    sha256 = "sha256-tZ6IZKChVxgX6ASjRP5NIWZGG1I9tNyyhVs4yNKtcYg=";
+    sha256 = "sha256-ceMJRnDjsgaOv0qcbwJemN8snS+ZV/so3ZA5kb7qT1A=";
   };
 in
 stdenv.mkDerivation {
