@@ -3,7 +3,7 @@ let
   sources = {
     "x86_64-linux" = {
       url = "https://cli.moonbitlang.com/binaries/latest/moonbit-linux-x86_64.tar.gz";
-      sha256 = "sha256-mkyslthuoqDLdvbmnYHpe2OeIfsS2/I+InwXbWZUOS0=";
+      sha256 = "sha256-3KxdTI8OYDhovyoXBzavkSFpaniCof48cptZJFSuXPU=";
     };
     "aarch64-darwin" = {
       url = "https://cli.moonbitlang.com/binaries/latest/moonbit-darwin-aarch64.tar.gz";
@@ -13,7 +13,7 @@ let
   source = sources.${stdenv.hostPlatform.system} or (throw "moonbit: unsupported system ${stdenv.hostPlatform.system}");
   coreSrc = fetchzip {
     url = "https://cli.moonbitlang.com/cores/core-latest.tar.gz";
-    sha256 = "sha256-ceMJRnDjsgaOv0qcbwJemN8snS+ZV/so3ZA5kb7qT1A=";
+    sha256 = "sha256-r6OZYrjQZPnLYoUHPWJvHvL0suXRqMcERn+aRCwQg1g=";
   };
 in
 stdenv.mkDerivation {
