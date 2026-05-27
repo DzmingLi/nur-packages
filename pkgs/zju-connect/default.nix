@@ -8,14 +8,14 @@
 }:
 buildGoModule (finalAttrs: {
   pname = "zju-connect";
-  version = "0-unstable-2026-05-24";
+  version = "0-unstable-2026-05-26";
   src = fetchFromGitHub {
     owner = "Mythologyli";
     repo = "zju-connect";
-    rev = "f97d271dc41c188723b64bdb1c83378bdfc85f71";
-    hash = "sha256-CNRdfshOAxNrpgJCMF/uUJzNUNL5z7pmfrGBCI9y2Vs=";
+    rev = "0c46ecdcbb030a8318e08c49a4c841568cd012af";
+    hash = "sha256-luB1Zv5lzkyAt7BAH3jtXEnwXsUbodT/uqkaD8rbmCI=";
   };
-  vendorHash = "sha256-H+WtDkq8FckXuriEQNh1vhsGIkw1U7RlhQeAbO0jUXQ=";
+  vendorHash = "sha256-lDxroSrPwwYF2w7qXR+PQYkre8E+nOwPzDiMoeScjO0=";
 
   patches = [
     # Sangfor tunnel resilience patch. Three independent but related
