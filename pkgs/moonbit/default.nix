@@ -7,7 +7,7 @@ let
     };
     "aarch64-darwin" = {
       url = "https://cli.moonbitlang.com/binaries/latest/moonbit-darwin-aarch64.tar.gz";
-      sha256 = "sha256-k5BHB8vy8/IzahQbyjI0uHMsykHyG2RJHHfwOI02TmM=";
+      sha256 = "sha256-zkg1dI7Oec5StnA6+Vhkm+WppqmvPpyKoGb7M8S38F8=";
     };
   };
   source = sources.${stdenv.hostPlatform.system} or (throw "moonbit: unsupported system ${stdenv.hostPlatform.system}");
