@@ -18,7 +18,7 @@
 
 let
   bottleVersion = "5.0.0.6008~spark2";
-  wineVersion = "10.14deepin7";
+  wineVersion = "10.14deepin8";
   helperVersion = "5.10.14-5.3.15";
   version = "5.0.0.6008";
 
@@ -64,7 +64,7 @@ let
     version = wineVersion;
     src = fetchurl {
       url = "https://pro-store-packages.uniontech.com/appstore/pool/eagle-pro/d/deepin-wine10-stable/deepin-wine10-stable_${wineVersion}_amd64.deb";
-      hash = "sha256-Q4f62x5bqK05xqbgSi/N58Cv2Fs4ccNGz+FGHrHb9Pk=";
+      hash = "sha256-+hEZ8gUONSczRZCfhOxyCR1WVjPd3puujz3ZMLfPgCE=";
       # CDN 403s without a uniontech Referer.
       curlOptsList = [
         "--referer"
@@ -96,16 +96,11 @@ let
 
   launcher = writeShellScript "wxwork-launch" ''
     set -u
-    # nixpkgs ships locales in a single archive; point glibc at it BEFORE we
-    # set LC_ALL so bash's setlocale() can actually find zh_CN.UTF-8.
-    if [ -z "''${LOCALE_ARCHIVE:-}" ]; then
-      for f in /usr/lib/locale/locale-archive /lib/locale/locale-archive /usr/lib64/locale/locale-archive; do
-        if [ -f "$f" ]; then
-          export LOCALE_ARCHIVE="$f"
-          break
-        fi
-      done
-    fi
+    # buildFHSEnv injects the default glibcLocales (C + en_US only) at
+    # /usr/lib/locale/locale-archive, so any filesystem-based discovery would
+    # pick *that* one and bash's setlocale would reject zh_CN.UTF-8. Point
+    # glibc straight at the wxworkLocales archive that includes zh_CN.
+    export LOCALE_ARCHIVE="${wxworkLocales}/lib/locale/locale-archive"
     export LANG="''${LANG:-zh_CN.UTF-8}"
     export LC_ALL="''${LC_ALL:-zh_CN.UTF-8}"
     # IME plumbing — let callers override if they don't use fcitx
@@ -114,6 +109,23 @@ let
     export XMODIFIERS="''${XMODIFIERS:-@im=fcitx}"
     # Make sure deepin-wine10-stable is on PATH for spark_run_v4.sh
     export PATH="/opt/deepin-wine10-stable/bin:$PATH"
+    # spark_kill.sh in spark-dwine-helper detects stale bottle processes by
+    # reading /proc/<pid>/maps and /proc/<pid>/environ, both of which NixOS
+    # denies for non-self pids (hidepid). When WeCom is force-logged-out by a
+    # phone login it leaves WXWork.exe stuck on a modal, spark_kill.sh
+    # silently fails to clean it up, and the next launch attaches to the dead
+    # wineserver and never paints. pkill by cmdline as a fallback — that
+    # /proc node IS readable for our own pids. Patterns match what actually
+    # shows up in argv (the WINEPREFIX path lives only in environ).
+    for pat in \
+      'spark_run_v4\.sh Deepin-WXWork' \
+      'WXWork\.exe' 'WXWorkWeb\.exe' 'WeMail\.exe' 'FlutterPlugins\.exe' \
+      'winedevice\.exe' 'crashpad_handler\.exe' \
+      'deepin-wine10-stable.* c:/Program Files .x86./WXWork' \
+      'opt/deepin-wine10-stable/.*/wineserver' ; do
+      pkill -KILL -u "$(id -u)" -f "$pat" 2>/dev/null || true
+    done
+    sleep 0.5
     exec /opt/apps/com.qq.weixin.work.deepin/files/run.sh "$@"
   '';
 
