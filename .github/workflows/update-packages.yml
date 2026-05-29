@@ -50,6 +50,7 @@ jobs:
           nix-update --flake baidupcs-go --commit
           nix-update --flake quarkpantool --commit
           nix-update --flake blueprint-mcp --commit
+          nix-update --flake telegram-mcp --commit
           nix-update --flake zju-connect --version=branch --commit
 
       - name: Update special packages via nu scripts
@@ -60,6 +61,16 @@ jobs:
           if not (git status --porcelain | str trim | is-empty) {
             git add pkgs/moonbit/default.nix pkgs/wechat/linux.nix
             git commit -m "packages: update moonbit/wechat"
+          }
+
+      - name: Update wxwork (macOS native .app; Linux bottle is pinned by hand)
+        run: |
+          nu scripts/update-wxwork.nu
+
+          if not (git status --porcelain pkgs/wxwork/darwin.nix | str trim | is-empty) {
+            let ver = (open pkgs/wxwork/darwin.nix --raw | parse -r 'version = "(?<v>[^"]+)";' | first | get v)
+            git add pkgs/wxwork/darwin.nix
+            git commit -m $"wxwork: ($ver) (darwin)"
           }
 
       - name: Update sub2api (version + frontend/vendor hashes)
