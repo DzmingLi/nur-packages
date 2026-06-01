@@ -15,6 +15,22 @@ let
     url = "https://cli.moonbitlang.com/cores/core-latest.tar.gz";
     sha256 = "sha256-r6OZYrjQZPnLYoUHPWJvHvL0suXRqMcERn+aRCwQg1g=";
   };
+  # moon uses a single MOON_HOME for both the (read-only) toolchain and its
+  # (writable) user state — credentials.json, the registry index, .mooncakes.
+  # Pinning it at the read-only store path breaks `moon login` / `moon publish`.
+  # Instead default MOON_HOME to a writable per-user dir (honouring an explicit
+  # override) and symlink the toolchain assets in from the store. `ln -sfn`
+  # refreshes our own links on a version bump; the symlink/absent guard keeps
+  # us from clobbering a real ~/.moon left by an official installer.
+  moonHomeSetup = ''
+    export MOON_HOME="''${MOON_HOME:-$HOME/.moon}"
+    mkdir -p "$MOON_HOME"
+    for d in bin lib include; do
+      if [ -L "$MOON_HOME/$d" ] || [ ! -e "$MOON_HOME/$d" ]; then
+        ln -sfn "${placeholder "out"}/$d" "$MOON_HOME/$d"
+      fi
+    done
+  '';
 in
 stdenv.mkDerivation {
   pname = "moonbit";
@@ -57,9 +73,9 @@ stdenv.mkDerivation {
     runHook postInstall
   '';
   postFixup = ''
-    wrapProgram $out/bin/moon --set MOON_HOME $out
+    wrapProgram $out/bin/moon --run ${lib.escapeShellArg moonHomeSetup}
     wrapProgram $out/bin/moonbit-lsp \
-      --set MOON_HOME $out \
+      --run ${lib.escapeShellArg moonHomeSetup} \
       --prefix PATH : ${lib.makeBinPath [ nodejs ]}
   '';
   meta = with lib; {
