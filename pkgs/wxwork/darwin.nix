@@ -25,15 +25,20 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   sourceRoot = ".";
   nativeBuildInputs = [ undmg ];
 
+  # dmg 里的 bundle 是中文名「企业微信.app」。在 C-locale 的构建环境里直接拷会
+  # 触发 mkdir 的 EILSEQ（Illegal byte sequence）。这里拷到 ASCII 目标名 WeCom.app
+  # 绕开（macOS 仍按 Info.plist 的 CFBundleDisplayName 显示为「企业微信」），
+  # 并设 UTF-8 locale 兜底。
   installPhase = ''
     runHook preInstall
-    app=$(find . -maxdepth 2 -name '企业微信.app' -type d | head -1)
+    export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+    app=$(find . -maxdepth 2 -name '*.app' -type d | head -1)
     if [ -z "$app" ]; then
-      echo "企业微信.app not found after undmg" >&2
+      echo "WeCom .app not found after undmg" >&2
       exit 1
     fi
     mkdir -p "$out/Applications"
-    cp -r "$app" "$out/Applications/"
+    cp -R "$app" "$out/Applications/WeCom.app"
     runHook postInstall
   '';
 
