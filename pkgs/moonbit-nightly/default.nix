@@ -2,18 +2,18 @@
 let
   sources = {
     "x86_64-linux" = {
-      url = "https://cli.moonbitlang.com/binaries/latest/moonbit-linux-x86_64.tar.gz";
-      sha256 = "sha256-4FFtqCFA6g/CvkMK44ENvkE36AoT8eW6ZKUK9E/v8Tk=";
+      url = "https://cli.moonbitlang.com/binaries/nightly/moonbit-linux-x86_64.tar.gz";
+      sha256 = "sha256-IdzvZF81fsi4cHnFj0qo9CBoyi7RxcrKE/gzj4rvC5I=";
     };
     "aarch64-darwin" = {
-      url = "https://cli.moonbitlang.com/binaries/latest/moonbit-darwin-aarch64.tar.gz";
-      sha256 = "sha256-VYej2iR5NDZRtbf7XsuvOT+DYQJYdyZbqck7cR3roMg=";
+      url = "https://cli.moonbitlang.com/binaries/nightly/moonbit-darwin-aarch64.tar.gz";
+      sha256 = "sha256-FibuvxZ025l8Sl39gCyrFtrWo4rPCYzt8jaISD8wIeE=";
     };
   };
-  source = sources.${stdenv.hostPlatform.system} or (throw "moonbit: unsupported system ${stdenv.hostPlatform.system}");
+  source = sources.${stdenv.hostPlatform.system} or (throw "moonbit-nightly: unsupported system ${stdenv.hostPlatform.system}");
   coreSrc = fetchzip {
-    url = "https://cli.moonbitlang.com/cores/core-latest.tar.gz";
-    sha256 = "sha256-T9Hs7AxrZ+Ywb0lLrpgQEOi08EP530Y5h3rzNtKq4VE=";
+    url = "https://cli.moonbitlang.com/cores/core-nightly.tar.gz";
+    sha256 = "sha256-q2kNCYhPliQVfdbYiA5kmy5l3OQ20uuOdj2/Zpx6jvI=";
   };
   # moon uses a single MOON_HOME for both the (read-only) toolchain and its
   # (writable) user state — credentials.json, the registry index, .mooncakes.
@@ -33,8 +33,8 @@ let
   '';
 in
 stdenv.mkDerivation {
-  pname = "moonbit";
-  version = "latest";
+  pname = "moonbit-nightly";
+  version = "nightly";
   src = fetchzip {
     inherit (source) url sha256;
     stripRoot = false;
@@ -61,7 +61,10 @@ stdenv.mkDerivation {
     chmod -R u+w ./lib/core
     export MOON_HOME=$(pwd)
     pushd lib/core
-    ../../bin/moon bundle --all
+    # Nightly ships the LLVM backend; the official installer bundles core for it
+    # in addition to wasm-gc (the latter is what `--all` covers on stable).
+    ../../bin/moon bundle --warn-list -a --target llvm
+    ../../bin/moon bundle --warn-list -a --target wasm-gc
     ../../bin/moon check
     popd
     runHook postBuild
@@ -83,7 +86,7 @@ stdenv.mkDerivation {
     homepage = "https://www.moonbitlang.com";
     sourceProvenance = with sourceTypes; [ binaryNativeCode ];
     license = licenses.asl20;
-    description = "The MoonBit Programming Language toolchain";
+    description = "The MoonBit Programming Language toolchain (nightly channel)";
     platforms = [ "x86_64-linux" "aarch64-darwin" ];
   };
 }

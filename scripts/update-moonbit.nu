@@ -1,10 +1,10 @@
 #!/usr/bin/env nu
 
-let pkg_file = "pkgs/moonbit/default.nix"
-let core_url = "https://cli.moonbitlang.com/cores/core-latest.tar.gz"
+let pkg_file = "pkgs/moonbit-nightly/default.nix"
+let core_url = "https://cli.moonbitlang.com/cores/core-nightly.tar.gz"
 let binaries = [
-  { url: "https://cli.moonbitlang.com/binaries/latest/moonbit-linux-x86_64.tar.gz" }
-  { url: "https://cli.moonbitlang.com/binaries/latest/moonbit-darwin-aarch64.tar.gz" }
+  { url: "https://cli.moonbitlang.com/binaries/nightly/moonbit-linux-x86_64.tar.gz" }
+  { url: "https://cli.moonbitlang.com/binaries/nightly/moonbit-darwin-aarch64.tar.gz" }
 ]
 
 def fetch-sri [url: string] {
