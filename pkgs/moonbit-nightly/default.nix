@@ -62,9 +62,13 @@ stdenv.mkDerivation {
     export MOON_HOME=$(pwd)
     pushd lib/core
     # Nightly ships the LLVM backend; the official installer bundles core for it
-    # in addition to wasm-gc (the latter is what `--all` covers on stable).
+    # in addition to wasm-gc (the latter is what `--all` covers on stable). We
+    # also bundle the native backend: consumers that link C FFI / native-stub
+    # code (and drive it via MOON_CC instead of the unusable-on-NixOS tcc) need
+    # core's native `.mi`/`.core` artifacts, which nightly does not ship prebuilt.
     ../../bin/moon bundle --warn-list -a --target llvm
     ../../bin/moon bundle --warn-list -a --target wasm-gc
+    ../../bin/moon bundle --warn-list -a --target native
     ../../bin/moon check
     popd
     runHook postBuild
