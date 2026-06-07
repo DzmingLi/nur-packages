@@ -5,7 +5,7 @@
 }:
 python3Packages.buildPythonApplication {
   pname = "telegram-mcp";
-  version = "3.1.15";
+  version = "3.1.16";
   pyproject = true;
 
   src = fetchFromGitHub {
