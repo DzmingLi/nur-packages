@@ -11,7 +11,7 @@
 }:
 
 let
-  version = "0.1.134";
+  version = "0.1.135";
 
   # Pin pnpm 9 (lockfileVersion 9.0; upstream Dockerfile pins pnpm@9) on the
   # top-level fetcher/hook so we keep the supported version without the
@@ -23,7 +23,7 @@ let
     owner = "Wei-Shaw";
     repo = "sub2api";
     tag = "v${version}";
-    hash = "sha256-RmQXFxFpeQP45Rz6IOymVKkeuwuksleZphTX3gUWocs=";
+    hash = "sha256-nmRrwb3QI5327nuSZOdYqOiewc1tHIfsLwhRBrbpQo0=";
   };
 
   # go.mod pins an exact patch release (e.g. `go 1.26.3`); nixpkgs may only
