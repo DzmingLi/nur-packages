@@ -55,12 +55,11 @@ jobs:
 
       - name: Update special packages via nu scripts
         run: |
-          nu scripts/update-moonbit.nu
           nu scripts/update-wechat.nu
 
-          if not (git status --porcelain | str trim | is-empty) {
-            git add pkgs/moonbit-nightly/default.nix pkgs/wechat/linux.nix
-            git commit -m "packages: update moonbit-nightly/wechat"
+          if not (git status --porcelain pkgs/wechat/linux.nix | str trim | is-empty) {
+            git add pkgs/wechat/linux.nix
+            git commit -m "wechat: update"
           }
 
       - name: Update wxwork (macOS native .app; Linux bottle is pinned by hand)
