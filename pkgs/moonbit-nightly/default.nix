@@ -3,17 +3,17 @@ let
   sources = {
     "x86_64-linux" = {
       url = "https://cli.moonbitlang.com/binaries/nightly/moonbit-linux-x86_64.tar.gz";
-      sha256 = "sha256-b6Ei0B4eTyhy9zfLpCENLr7NoxJBRClweANHpr2zmow=";
+      sha256 = "sha256-JtFPbDNDfFP2GdY7hdKSBSCkxsI5pI7x4Gg9nEL/U2c=";
     };
     "aarch64-darwin" = {
       url = "https://cli.moonbitlang.com/binaries/nightly/moonbit-darwin-aarch64.tar.gz";
-      sha256 = "sha256-l7/Mdyzh+5TNPDYeVtXXjtGWhlA93fIIv1VyUcIhKTQ=";
+      sha256 = "sha256-lKtePqgwV2WSg8I8JXphN9b5fOt8vcYPLN2AZA1G0kM=";
     };
   };
   source = sources.${stdenv.hostPlatform.system} or (throw "moonbit-nightly: unsupported system ${stdenv.hostPlatform.system}");
   coreSrc = fetchzip {
     url = "https://cli.moonbitlang.com/cores/core-nightly.tar.gz";
-    sha256 = "sha256-HjPOS/DvQAOdv1eek+ktD6OV0saMjbQI5cIKmz3AqX4=";
+    sha256 = "sha256-nZokAySezbxHUovv11SWznduTXwVL6DzePb2y5g0W0c=";
   };
   # moon uses a single MOON_HOME for both the (read-only) toolchain and its
   # (writable) user state — credentials.json, the registry index, .mooncakes.
