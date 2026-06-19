@@ -20,6 +20,9 @@
   zlib,
   # media_kit 在运行时 dlopen libmpv.so.2（autoPatchelf 抓不到，放 runtimeDependencies）
   mpv-unwrapped,
+  # path_provider_linux 通过 exec `xdg-user-dir` 解析 Documents 目录；缺它会抛
+  # MissingPlatformDirectoryException，连带 sqflite/离线服务/art_cache 全部初始化失败。
+  xdg-user-dirs,
 }:
 
 # Musly —— Subsonic 兼容服务器的 Flutter 音乐客户端。
@@ -73,9 +76,11 @@ stdenv.mkDerivation (finalAttrs: {
     # 主程序通过 $ORIGIN/lib 找到捆绑的 Flutter 插件 .so，保留原 RPATH 即可。
     # 但 media_kit 通过 dart:ffi 的 DynamicLibrary.open("libmpv.so.2") 裸 soname
     # dlopen libmpv —— 这不走可执行文件的 RPATH，必须靠 LD_LIBRARY_PATH。
+    # path_provider_linux 运行时 exec `xdg-user-dir`，把它放进 PATH。
     install -dm755 "$out/bin"
     makeWrapper "$out/share/musly/musly" "$out/bin/musly" \
-      --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [ mpv-unwrapped ]}"
+      --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [ mpv-unwrapped ]}" \
+      --prefix PATH : "${lib.makeBinPath [ xdg-user-dirs ]}"
 
     # 桌面入口 + 图标（图标取自 bundle 内的 logo.png）
     install -Dm644 data/flutter_assets/assets/logo.png \
