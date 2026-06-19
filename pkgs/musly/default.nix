@@ -71,8 +71,11 @@ stdenv.mkDerivation (finalAttrs: {
     chmod +x "$out/share/musly/musly"
 
     # 主程序通过 $ORIGIN/lib 找到捆绑的 Flutter 插件 .so，保留原 RPATH 即可。
+    # 但 media_kit 通过 dart:ffi 的 DynamicLibrary.open("libmpv.so.2") 裸 soname
+    # dlopen libmpv —— 这不走可执行文件的 RPATH，必须靠 LD_LIBRARY_PATH。
     install -dm755 "$out/bin"
-    makeWrapper "$out/share/musly/musly" "$out/bin/musly"
+    makeWrapper "$out/share/musly/musly" "$out/bin/musly" \
+      --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [ mpv-unwrapped ]}"
 
     # 桌面入口 + 图标（图标取自 bundle 内的 logo.png）
     install -Dm644 data/flutter_assets/assets/logo.png \
