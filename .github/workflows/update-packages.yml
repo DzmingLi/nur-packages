@@ -50,7 +50,6 @@ jobs:
           nix-update --flake baidupcs-go --commit
           nix-update --flake quarkpantool --commit
           nix-update --flake blueprint-mcp --commit
-          nix-update --flake telegram-mcp --commit
           nix-update --flake zju-connect --version=branch --commit
 
       - name: Update special packages via nu scripts
