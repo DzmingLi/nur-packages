@@ -6,29 +6,18 @@
 # commands such as:
 #     nix-build -A mypackage
 
-{ pkgs ? import <nixpkgs> { }
-, haumea ?
-  let
-    lock = builtins.fromJSON (builtins.readFile ./flake.lock);
-    h = lock.nodes.haumea.locked;
-  in
-  {
-    lib = import
-      (builtins.fetchTarball {
-        url = "https://github.com/${h.owner}/${h.repo}/archive/${h.rev}.tar.gz";
-        sha256 = h.narHash;
-      })
-      { };
-  }
-}:
+{ pkgs ? import <nixpkgs> { } }:
 
 {
   # The `lib`, `modules`, and `overlays` names are special
   lib = import ./lib { inherit pkgs; }; # functions
   modules = import ./modules; # NixOS modules
   overlays = import ./overlays; # nixpkgs overlays
-} // builtins.mapAttrs (_: v: v.default) (haumea.lib.load {
-  src = ./pkgs;
-  inputs = builtins.removeAttrs pkgs [ "self" "super" "root" ];
-  loader = haumea.lib.loaders.callPackage;
-})
+}
+# Load every package under ./pkgs via callPackage. This is done with plain
+# builtins (no external loader) so the package set evaluates under NUR's
+# restricted mode, which only allows fetching from https://static.rust-lang.org
+# and would otherwise reject pulling a loader from github.com at eval time.
+// builtins.mapAttrs
+  (name: _: pkgs.callPackage (./pkgs + "/${name}") { })
+  (pkgs.lib.filterAttrs (_: type: type == "directory") (builtins.readDir ./pkgs))
