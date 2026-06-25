@@ -9,8 +9,8 @@ on:
 jobs:
   update-packages:
     runs-on: ubuntu-latest
-    # Authenticate GitHub API calls (gh in update-sub2api.nu, and nix-update's
-    # release lookups) to avoid unauthenticated rate limits.
+    # Authenticate GitHub API calls (nix-update's release lookups) to avoid
+    # unauthenticated rate limits.
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     defaults:
@@ -68,17 +68,7 @@ jobs:
           if not (git status --porcelain pkgs/wxwork/darwin.nix | str trim | is-empty) {
             let ver = (open pkgs/wxwork/darwin.nix --raw | parse -r 'version = "(?<v>[^"]+)";' | first | get v)
             git add pkgs/wxwork/darwin.nix
-            git commit -m $"wxwork: ($ver) (darwin)"
-          }
-
-      - name: Update sub2api (version + frontend/vendor hashes)
-        run: |
-          nu scripts/update-sub2api.nu
-
-          if not (git status --porcelain pkgs/sub2api/default.nix | str trim | is-empty) {
-            let ver = (open pkgs/sub2api/default.nix --raw | parse -r 'version = "(?<v>[^"]+)";' | first | get v)
-            git add pkgs/sub2api/default.nix
-            git commit -m $"sub2api: ($ver)"
+            git commit -m $"wxwork: ($ver) \(darwin\)"
           }
 
       - name: Push changes
