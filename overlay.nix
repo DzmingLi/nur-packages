@@ -7,6 +7,13 @@ let
   isReserved = n: n == "lib" || n == "overlays" || n == "modules";
   nameValuePair = n: v: { name = n; value = v; };
   nurAttrs = import ./default.nix { pkgs = super; };
+  emacsPackageDirs =
+    super.lib.filterAttrs (_: type: type == "directory")
+      (builtins.readDir ./pkgs/emacsPackages);
+  emacsPackageOverrides = epkgs:
+    builtins.mapAttrs
+      (name: _: epkgs.callPackage (./pkgs/emacsPackages + "/${name}") { })
+      emacsPackageDirs;
 
 in
 (builtins.listToAttrs
@@ -14,5 +21,10 @@ in
     (builtins.filter (n: !isReserved n)
       (builtins.attrNames nurAttrs))))
 // {
-  emacsPackages = super.emacsPackages // nurAttrs.emacsPackages;
+  emacsPackagesFor = emacs:
+    (super.emacsPackagesFor emacs).overrideScope
+      (efinal: _eprev: emacsPackageOverrides efinal);
+  emacsPackages =
+    super.emacsPackages.overrideScope
+      (efinal: _eprev: emacsPackageOverrides efinal);
 }
