@@ -14,9 +14,5 @@ in
     (builtins.filter (n: !isReserved n)
       (builtins.attrNames nurAttrs))))
 // {
-  emacsPackages = super.emacsPackages // {
-    codex = nurAttrs.codex-el;
-    moonbit-mode = nurAttrs.moonbit-mode;
-    mu4e-dashboard = nurAttrs.mu4e-dashboard;
-  };
+  emacsPackages = super.emacsPackages // nurAttrs.emacsPackages;
 }
