@@ -7,15 +7,7 @@ let
   isReserved = n: n == "lib" || n == "overlays" || n == "modules";
   nameValuePair = n: v: { name = n; value = v; };
   nurAttrs = import ./default.nix { pkgs = super; };
-  emacsPackageDirs =
-    super.lib.filterAttrs (_: type: type == "directory")
-      (builtins.readDir ./pkgs/emacsPackages);
-  emacsPackageOverrides = epkgs:
-    builtins.mapAttrs
-      (name: _: epkgs.callPackage (./pkgs/emacsPackages + "/${name}") {
-        tree-sitter = super.tree-sitter;
-      })
-      emacsPackageDirs;
+  emacsPackageOverrides = epkgs: nurAttrs.emacsPackages.for epkgs;
 
 in
 (builtins.listToAttrs
