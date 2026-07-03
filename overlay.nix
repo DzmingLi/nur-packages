@@ -12,7 +12,9 @@ let
       (builtins.readDir ./pkgs/emacsPackages);
   emacsPackageOverrides = epkgs:
     builtins.mapAttrs
-      (name: _: epkgs.callPackage (./pkgs/emacsPackages + "/${name}") { })
+      (name: _: epkgs.callPackage (./pkgs/emacsPackages + "/${name}") {
+        tree-sitter = super.tree-sitter;
+      })
       emacsPackageDirs;
 
 in
