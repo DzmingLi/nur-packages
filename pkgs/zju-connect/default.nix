@@ -17,13 +17,6 @@ buildGoModule (finalAttrs: {
   };
   vendorHash = "sha256-lDxroSrPwwYF2w7qXR+PQYkre8E+nOwPzDiMoeScjO0=";
 
-  patches = [
-    # Keep local TLS key logging support for packet debugging. The former
-    # Sangfor resilience changes in this patch are included upstream as of
-    # zju-connect 1.2.0.
-    ./sangfor-resilience.patch
-  ];
-
   buildInputs = [
     stdenv.cc.cc.lib
   ];
