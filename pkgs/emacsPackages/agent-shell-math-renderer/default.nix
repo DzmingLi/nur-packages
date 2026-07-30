@@ -10,7 +10,7 @@
 ## users can choose its size and package set independently of this Elisp.
 emacsPackages.trivialBuild {
   pname = "agent-shell-math-renderer";
-  version = "0.1.0-unstable-2026-07-31";
+  version = "0.1.0-unstable-2026-07-24";
 
   src = fetchFromGitHub {
     owner = "alberti42";
