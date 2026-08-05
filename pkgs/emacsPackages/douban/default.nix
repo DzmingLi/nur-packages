@@ -16,8 +16,8 @@ emacsPackages.trivialBuild {
   src = fetchFromGitHub {
     owner = "DzmingLi";
     repo = "douban.el";
-    rev = "fe61593172a93e8953a8f8ae1bb0249ec6e6429e";
-    hash = "sha256-lY486bUuINyABE+d1qbKSQwSDgaz5fi1X+DMrzRIE5k=";
+    rev = "926b8cd0da1fbabfe1a87ee1aa18cea9059312d9";
+    hash = "sha256-rgqhIohap8Y+yHTdDwaAnJMvFNtGqlgaLadOv5wsXyk=";
   };
 
   packageRequires = [
